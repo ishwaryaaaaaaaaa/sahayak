@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tools_data import load_cases, load_schemes, load_ngos
 from crew_runner import run_case
+from voice_tools import transcribe_audio, synthesize_speech
 
 st.set_page_config(
     page_title="Sahayak — Rural Health & Finance Helpline Agent",
@@ -90,15 +91,26 @@ tab1, tab2, tab3 = st.tabs(["📞 Simulated Call", "🗂️ Case Log / NGO Dashb
 with tab1:
     st.subheader("Step 1 — Caller describes their situation")
     st.caption(
-        "In production this would be a live phone call transcribed via speech-to-text "
-        "in the caller's regional language. Here, type what the caller says."
+        "Record real voice input below (transcribed live via Groq Whisper), or "
+        "type the caller's situation directly."
     )
+
+    lang_choice = st.radio(
+        "Language / भाषा",
+        ["English", "हिंदी (Hindi)"],
+        horizontal=True,
+    )
+    language = "hi" if lang_choice.startswith("हिंदी") else "en"
 
     col1, col2 = st.columns(2)
     with col1:
         caller_name = st.text_input("Caller name (optional)", value="Ramesh")
     with col2:
         caller_phone = st.text_input("Caller phone (optional)", value="+91-98XXXXXXXX")
+
+    audio_value = st.audio_input(
+        "🎙️ Record the caller's situation (real voice input via Groq Whisper)"
+    )
 
     example = (
         "I am Ramesh, a farmer in a village near Kharagpur. My wife is seven months "
@@ -107,9 +119,18 @@ with tab1:
         "some crop this season due to rain."
     )
 
+    if audio_value is not None:
+        with st.spinner("Transcribing with Groq Whisper..."):
+            try:
+                whisper_language = "hi" if language == "hi" else None
+                transcribed = transcribe_audio(audio_value.getvalue(), language=whisper_language)
+                st.session_state["transcribed_text"] = transcribed
+            except Exception as e:
+                st.error(f"Transcription failed: {e}")
+
     raw_text = st.text_area(
-        "Caller's situation (simulated voice transcript)",
-        value=example,
+        "Caller's situation (transcript — edit if needed)",
+        value=st.session_state.get("transcribed_text", example),
         height=120,
     )
 
@@ -121,7 +142,12 @@ with tab1:
         else:
             with st.spinner("Running 5-agent pipeline (Listener → Classifier → Scheme Matcher → NGO Coordinator → Follow-up)..."):
                 try:
-                    result = run_case(raw_text, caller_name=caller_name, caller_phone=caller_phone)
+                    result = run_case(
+                        raw_text,
+                        caller_name=caller_name,
+                        caller_phone=caller_phone,
+                        language=language,
+                    )
                     st.session_state["last_result"] = result
                 except Exception as e:
                     st.error(f"Pipeline failed: {e}")
@@ -131,11 +157,43 @@ with tab1:
         result = st.session_state["last_result"]
         st.success(f"Case {result['case_id']} processed successfully.")
 
-        st.markdown('<div class="stage-box"><span class="stage-label">1. Listener — structured intake</span><br>' + result["listener_output"].replace("\n", "<br>") + '</div>', unsafe_allow_html=True)
-        st.markdown('<div class="stage-box"><span class="stage-label">2. Classifier — domain &amp; urgency</span><br>' + result["classifier_output"].replace("\n", "<br>") + '</div>', unsafe_allow_html=True)
-        st.markdown('<div class="stage-box"><span class="stage-label">3. Knowledge Matcher — matched schemes</span><br>' + result["matcher_output"].replace("\n", "<br>") + '</div>', unsafe_allow_html=True)
-        st.markdown('<div class="stage-box"><span class="stage-label">4. NGO Coordinator — escalation</span><br>' + result["ngo_output"].replace("\n", "<br>") + '</div>', unsafe_allow_html=True)
-        st.markdown('<div class="stage-box"><span class="stage-label">5. Follow-up Plan</span><br>' + result["followup_output"].replace("\n", "<br>") + '</div>', unsafe_allow_html=True)
+        def stage_box(label, english_text, hindi_text=None):
+            shown = hindi_text if hindi_text else english_text
+            st.markdown(
+                f'<div class="stage-box"><span class="stage-label">{label}</span><br>'
+                + shown.replace("\n", "<br>") + '</div>',
+                unsafe_allow_html=True,
+            )
+            if hindi_text:
+                with st.expander("Show English"):
+                    st.write(english_text)
+
+        stage_box(
+            "1. Listener — structured intake",
+            result["listener_output"],
+            result.get("listener_output_hi"),
+        )
+        stage_box("2. Classifier — domain &amp; urgency", result["classifier_output"])
+        stage_box(
+            "3. Knowledge Matcher — matched schemes",
+            result["matcher_output"],
+            result.get("matcher_output_hi"),
+        )
+        stage_box("4. NGO Coordinator — escalation", result["ngo_output"])
+        stage_box(
+            "5. Follow-up Plan",
+            result["followup_output"],
+            result.get("followup_output_hi"),
+        )
+
+        followup_text = result.get("followup_output_hi") or result["followup_output"]
+        with st.spinner("Synthesizing follow-up message audio..."):
+            try:
+                audio_bytes = synthesize_speech(followup_text, language=result.get("language", "en"))
+                audio_format = "audio/mp3" if result.get("language") == "hi" else "audio/wav"
+                st.audio(audio_bytes, format=audio_format)
+            except Exception as e:
+                st.warning(f"Could not synthesize follow-up audio: {e}")
 
 # ---------------- TAB 2: Case Log / NGO Dashboard ----------------
 with tab2:

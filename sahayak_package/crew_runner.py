@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from crewai import Crew, Process
 
 from agents.definitions import (
+    llm,
     get_listener_agent,
     get_classifier_agent,
     get_knowledge_matcher_agent,
@@ -33,10 +34,37 @@ from tasks.definitions import (
 from tools_data import schemes_as_text, ngos_as_text, save_case
 
 
-def run_case(raw_text: str, caller_name: str = "Unknown Caller", caller_phone: str = "N/A") -> dict:
+def translate_text(text: str, target_language: str = "hi") -> str:
+    """
+    Translates `text` using the same LLM that powers the agent pipeline
+    (no separate translation dependency). The agents themselves always
+    reason in English since the schemes/NGO data is in English — this is
+    only for presenting results to a Hindi-speaking caller.
+    """
+    language_name = "Hindi" if target_language == "hi" else "English"
+    prompt = (
+        f"Translate the following text into natural, simple {language_name}. "
+        "Keep person names, scheme names, and currency amounts unchanged. "
+        "Return only the translation, with no preamble or explanation.\n\n"
+        f"{text}"
+    )
+    return llm.call(messages=prompt)
+
+
+def run_case(
+    raw_text: str,
+    caller_name: str = "Unknown Caller",
+    caller_phone: str = "N/A",
+    language: str = "en",
+) -> dict:
     """
     Runs the full 5-agent pipeline on one case and returns a structured result
     dict, also persisting it to the local case log (data/cases.json).
+
+    `language` controls only the presentation layer: agents always reason in
+    English; when language="hi", the transcript summary, matched-schemes
+    summary, and follow-up message are additionally translated to Hindi and
+    stored under "*_hi" keys, alongside the original English output.
     """
     listener = get_listener_agent()
     classifier = get_classifier_agent()
@@ -64,6 +92,7 @@ def run_case(raw_text: str, caller_name: str = "Unknown Caller", caller_phone: s
         "created_at": datetime.utcnow().isoformat(),
         "caller_name": caller_name,
         "caller_phone": caller_phone,
+        "language": language,
         "raw_text": raw_text,
         "listener_output": str(t1.output) if t1.output else "",
         "classifier_output": str(t2.output) if t2.output else "",
@@ -73,6 +102,11 @@ def run_case(raw_text: str, caller_name: str = "Unknown Caller", caller_phone: s
         "final_output": str(result),
         "status": "escalated",
     }
+
+    if language == "hi":
+        case_record["listener_output_hi"] = translate_text(case_record["listener_output"], "hi")
+        case_record["matcher_output_hi"] = translate_text(case_record["matcher_output"], "hi")
+        case_record["followup_output_hi"] = translate_text(case_record["followup_output"], "hi")
 
     save_case(case_record)
     return case_record

@@ -96,18 +96,22 @@ Each agent has **one narrow responsibility** deliberately — this is what makes
 | Layer | Technology | Why |
 |---|---|---|
 | Agent orchestration | **CrewAI** | Sequential multi-agent pipelines with built-in context passing between tasks |
-| LLM | **Groq — LLaMA 3.3 70B (`llama-3.3-70b-versatile`)** | Fast, low-cost inference well suited to a helpline-scale workload |
 | LLM routing | **LiteLLM** | CrewAI's provider abstraction layer for non-OpenAI models |
-| Demo interface | **Streamlit** | Fast to build, clean tabbed UI, good for live judging demos |
+| Speech-to-text | **Groq Whisper (`whisper-large-v3-turbo`)** | Same multilingual model for English and Hindi input, just a different language hint |
+| Text-to-speech (English) | **Groq Orpheus TTS** (`canopylabs/orpheus-v1-english`) | Fast, low-latency English voice synthesis |
+| Text-to-speech (Hindi) | **gTTS** | Free fallback since Groq has no Hindi voice yet |
+| Translation | Same LLM used by the agents, via a plain prompt (`crew_runner.translate_text`) | No extra translation dependency |
+| Demo interface | **Streamlit** | Fast to build, clean tabbed UI with a real mic input widget (`st.audio_input`) |
 | Data layer | **JSON files** (`schemes.json`, `ngos.json`, `cases.json`) | Zero-setup, transparent, easy to swap for a real DB post-hackathon |
-| Config | **python-dotenv** | Keeps the Groq API key out of source control |
+| Config | **python-dotenv** | Keeps API keys out of source control |
 
 ## Project Structure
 
 ```
 sahayak/
 ├── app.py                      # Streamlit demo UI (3 tabs: call simulator, case log, architecture)
-├── crew_runner.py              # Orchestrates the 5-agent CrewAI pipeline end-to-end
+├── crew_runner.py              # Orchestrates the 5-agent CrewAI pipeline end-to-end + Hindi translation step
+├── voice_tools.py               # Groq Whisper transcription + Groq Orpheus/gTTS speech synthesis
 ├── tools_data.py                # Loads/saves schemes, NGOs, and case records (JSON-backed)
 ├── agents/
 │   └── definitions.py          # All 5 CrewAI Agent definitions (role, goal, backstory, LLM)
@@ -161,18 +165,21 @@ Runs one hardcoded sample case (Ramesh's scenario) through all five agents and p
 We'd rather be upfront about this than have it surface awkwardly during judging.
 
 **✅ Fully real and working:**
-- All 5 agents run on live CrewAI orchestration with real LLM calls (Groq/LLaMA 3.3 70B) at every stage
+- All 5 agents run on live CrewAI orchestration with real LLM calls at every stage
 - The scheme-matching reasoning is genuine — the Knowledge Matcher agent reasons over actual eligibility criteria, it doesn't use keyword matching
 - The NGO escalation message and follow-up plan are generated fresh per case, not templated
 - The case log and dashboard reflect actual pipeline runs
+- **Hindi speech input** — recorded audio is transcribed by Groq Whisper (`whisper-large-v3-turbo`) the same way for English and Hindi; there is no separate "Hindi mode" model, just a language hint passed to the same STT call
+- **Hindi text translation** — the transcript summary, matched-schemes summary, and follow-up message are translated to Hindi by a plain prompt to the same LLM that runs the agents (`crew_runner.translate_text`), not a separate translation API or library
 
-**🔶 Simulated for this prototype, with a clear path to real:**
-- **Voice input** — the demo uses a text box standing in for a transcribed phone call. A production version would use Twilio/Exotel for the call itself and a regional-language speech-to-text API (e.g. Google Cloud Speech, Bhashini) for transcription, feeding the same Listener agent the same way.
+**🔶 Simulated or partial in this prototype, with a clear path to real:**
+- **Hindi speech output is not on the same engine as English.** Groq's hosted TTS (Orpheus) only ships English and Arabic voices — there is no Groq Hindi voice yet. So English follow-up audio is synthesized by Groq Orpheus, while Hindi follow-up audio falls back to gTTS (Google Text-to-Speech), a different, free engine. This is a real functional gap, not a demo simplification — we're flagging it rather than implying one unified voice stack handles both languages end-to-end.
+- **Phone telephony** — voice is captured via the browser's microphone (`st.audio_input`), not an actual phone call. A production version would put Twilio/Exotel in front of the same Whisper transcription call.
 - **NGO directory** — the 5 NGOs in `ngos.json` are illustrative/fictional for the Kharagpur district demo, since compiling and verifying a real, consented directory of NGO contacts was out of scope for a hackathon timeline. The escalation logic itself does not change when this is swapped for real, verified contacts.
 - **Message dispatch** — escalation and follow-up messages are generated and logged, not actually sent via SMS/email/WhatsApp in this prototype.
 - **Multi-day follow-up** — the Follow-up Coordinator produces a *plan* (message + recommended timing) in a single pipeline run; actually re-contacting the caller days later would need a scheduler (e.g. a cron job or Twilio's scheduled messaging) wired to the same agent.
 
-The reason for drawing this line here: the parts we simulated are integration and infrastructure work (telephony, messaging, scheduling, partner onboarding), not reasoning work. The agent architecture — the actual hard problem of routing a messy human situation to the right scheme and the right help — is real and fully demonstrated.
+The reason for drawing this line here: most of what we simulated is integration and infrastructure work (telephony, messaging, scheduling, partner onboarding), not reasoning work. The one real functional gap — Hindi voice output running on a different engine than English — is a genuine limitation of Groq's current TTS offering, not something we chose to simplify.
 
 ## Roadmap to Production
 
