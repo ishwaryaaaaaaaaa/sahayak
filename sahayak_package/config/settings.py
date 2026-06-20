@@ -21,3 +21,13 @@ OPENROUTER_MODEL = "openrouter/meta-llama/llama-3.3-70b-instruct"
 
 # Keep request rate modest to avoid free-tier throttling, as seen before.
 MAX_RPM = 8
+
+# Voice I/O: Groq is used directly (not via OpenRouter) for the audio
+# endpoints below, since OpenRouter does not proxy speech APIs.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
+
+# Groq's TTS only ships English/Arabic voices, so it's used for English
+# output only; Hindi output falls back to gTTS (see voice_tools.py).
+GROQ_TTS_MODEL = "canopylabs/orpheus-v1-english"
+GROQ_TTS_VOICE = "troy"
