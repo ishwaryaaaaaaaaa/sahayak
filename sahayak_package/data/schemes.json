@@ -1,0 +1,122 @@
+[
+  {
+    "id": "S001",
+    "name": "Ayushman Bharat - PM Jan Arogya Yojana (PM-JAY)",
+    "category": "health",
+    "description": "Provides health insurance cover of up to Rs. 5 lakh per family per year for secondary and tertiary hospitalization.",
+    "eligibility": ["BPL (Below Poverty Line) families", "Families listed in SECC 2011 database", "No existing health insurance"],
+    "documents_needed": ["Aadhaar card", "Ration card", "SECC 2011 listing proof or e-Shram card"],
+    "how_to_apply": "Visit nearest Ayushman Bharat Kendra or Common Service Centre (CSC) with documents. ASHA worker can assist with verification.",
+    "helpline": "14555"
+  },
+  {
+    "id": "S002",
+    "name": "Janani Suraksha Yojana (JSY)",
+    "category": "health",
+    "description": "Cash assistance to pregnant women for institutional delivery to reduce maternal and infant mortality.",
+    "eligibility": ["Pregnant women, especially BPL and SC/ST households", "Delivery at government or accredited private facility"],
+    "documents_needed": ["Aadhaar card", "BPL certificate (if applicable)", "ANC checkup card from ASHA/ANM"],
+    "how_to_apply": "Register with local ASHA worker during pregnancy; cash assistance disbursed after institutional delivery.",
+    "helpline": "104"
+  },
+  {
+    "id": "S003",
+    "name": "Pradhan Mantri Matru Vandana Yojana (PMMVY)",
+    "category": "health",
+    "description": "Maternity benefit of Rs. 5,000 in installments for first living child, to compensate for wage loss during pregnancy.",
+    "eligibility": ["Pregnant and lactating women (first child)", "Excludes government employees with paid maternity leave"],
+    "documents_needed": ["Aadhaar card", "Bank account passbook", "MCP card (Mother and Child Protection card)"],
+    "how_to_apply": "Register at Anganwadi Centre or nearest health facility with ASHA/Anganwadi worker support.",
+    "helpline": "104"
+  },
+  {
+    "id": "S004",
+    "name": "Swasthya Sathi (West Bengal State Health Scheme)",
+    "category": "health",
+    "description": "West Bengal state health scheme providing cashless treatment up to Rs. 5 lakh per family per year at empanelled hospitals.",
+    "eligibility": ["All residents of West Bengal (universal coverage)", "Priority for families without other health cover"],
+    "documents_needed": ["Aadhaar card", "Voter ID or residence proof", "Family details for card issuance"],
+    "how_to_apply": "Apply at Swasthya Sathi camps, Block Development Office, or online via the WB state portal.",
+    "helpline": "1800-345-5384"
+  },
+  {
+    "id": "S005",
+    "name": "National Disability Pension Scheme (IGNDPS)",
+    "category": "finance",
+    "description": "Monthly pension for persons with 80% or more disability, from BPL households.",
+    "eligibility": ["Age 18-79", "80% or more disability certified", "BPL household"],
+    "documents_needed": ["Disability certificate from government hospital", "BPL card", "Aadhaar card"],
+    "how_to_apply": "Apply at Block Development Office or Gram Panchayat with disability certificate.",
+    "helpline": "1800-111-555"
+  },
+  {
+    "id": "S006",
+    "name": "MGNREGA (Mahatma Gandhi National Rural Employment Guarantee Act)",
+    "category": "finance",
+    "description": "Guarantees 100 days of wage employment per year to rural households willing to do unskilled manual work.",
+    "eligibility": ["Rural household", "Adult member willing to do manual work", "Registered Job Card holder"],
+    "documents_needed": ["Job Card (apply if not held)", "Aadhaar card", "Bank account"],
+    "how_to_apply": "Apply for Job Card at Gram Panchayat; demand work in writing; wages credited to bank account.",
+    "helpline": "1800-111-555"
+  },
+  {
+    "id": "S007",
+    "name": "Kanyashree Prakalpa (West Bengal)",
+    "category": "finance",
+    "description": "Conditional cash transfer for girls aged 13-18 to prevent child marriage and promote education; one-time grant of Rs. 25,000 at 18 if unmarried and continuing education.",
+    "eligibility": ["Unmarried girls aged 13-18, enrolled in school/college", "Annual family income below Rs. 1.2 lakh"],
+    "documents_needed": ["Birth certificate", "School/college enrollment proof", "Income certificate", "Bank account"],
+    "how_to_apply": "Apply through school/college Kanyashree coordinator or online via WB Kanyashree portal.",
+    "helpline": "1800-345-2700"
+  },
+  {
+    "id": "S008",
+    "name": "National Scholarship Portal - SC/ST/OBC Post-Matric Scholarship",
+    "category": "finance",
+    "description": "Financial assistance for SC/ST/OBC students pursuing post-matriculation studies to reduce dropout.",
+    "eligibility": ["SC/ST/OBC category student", "Enrolled in recognized post-matric course", "Family income below prescribed limit"],
+    "documents_needed": ["Caste certificate", "Income certificate", "Previous year mark sheet", "Bank account linked to Aadhaar"],
+    "how_to_apply": "Apply online at scholarships.gov.in (National Scholarship Portal); NGO or Common Service Centre can assist with the form.",
+    "helpline": "0120-6619540"
+  },
+  {
+    "id": "S009",
+    "name": "PM Suraksha Bima Yojana (PMSBY)",
+    "category": "finance",
+    "description": "Accidental death and disability insurance cover of Rs. 2 lakh at a premium of Rs. 20 per year.",
+    "eligibility": ["Age 18-70", "Bank account holder"],
+    "documents_needed": ["Bank account", "Aadhaar card"],
+    "how_to_apply": "Enroll through bank branch or via auto-debit consent form at any bank offering the scheme.",
+    "helpline": "1800-180-1111"
+  },
+  {
+    "id": "S010",
+    "name": "Krishak Bandhu (West Bengal Farmer Support Scheme)",
+    "category": "finance",
+    "description": "Income support to farmers, including a one-time death benefit of Rs. 2 lakh to the family in case of farmer's death.",
+    "eligibility": ["Farmer or farmer's family in West Bengal", "Land records (Khatian/Parcha) in farmer's name"],
+    "documents_needed": ["Land records", "Aadhaar card", "Bank account"],
+    "how_to_apply": "Apply at Block Agriculture Office or Gram Panchayat with land documents.",
+    "helpline": "1800-103-4646"
+  },
+  {
+    "id": "S011",
+    "name": "Rashtriya Swasthya Bima Yojana - now merged into PM-JAY",
+    "category": "health",
+    "description": "Legacy scheme now subsumed under Ayushman Bharat PM-JAY for BPL families.",
+    "eligibility": ["BPL families (now covered under PM-JAY)"],
+    "documents_needed": ["Aadhaar card", "BPL card"],
+    "how_to_apply": "Existing beneficiaries should check status with Ayushman Bharat Kendra; new applicants apply under PM-JAY directly.",
+    "helpline": "14555"
+  },
+  {
+    "id": "S012",
+    "name": "Atal Pension Yojana (APY)",
+    "category": "finance",
+    "description": "Pension scheme for unorganized sector workers, guaranteeing a fixed monthly pension after age 60.",
+    "eligibility": ["Age 18-40", "Unorganized sector worker", "Savings bank account"],
+    "documents_needed": ["Bank account", "Aadhaar card", "Mobile number"],
+    "how_to_apply": "Enroll through any bank or post office branch offering APY.",
+    "helpline": "1800-110-069"
+  }
+]
