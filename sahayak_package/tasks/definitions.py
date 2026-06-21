@@ -13,6 +13,8 @@ class SchemeMatch(BaseModel):
     scheme_name: str
     why_match: str
     documents_needed: List[str]
+    confidence_score: int
+    reasoning_path: str
 
 
 class MatcherOutput(BaseModel):
@@ -75,10 +77,12 @@ def make_knowledge_matcher_task(agent, context_tasks, schemes_text: str):
             "- scheme_id and scheme_name\n"
             "- why_match: one sentence on why this person likely qualifies\n"
             "- documents_needed: from the scheme data\n"
+            "- confidence_score: an integer from 0 to 100 representing your confidence in this match based on matching criteria\n"
+            "- reasoning_path: a string explaining the criteria match logic, e.g. 'Matches criteria: West Bengal Resident AND Land < 2 Acres'\n"
             "If no scheme is a strong match, return an empty matches list rather than "
             "forcing a match."
         ),
-        expected_output="A list of matched schemes, each with scheme_id, scheme_name, why_match, and documents_needed.",
+        expected_output="A list of matched schemes, each with scheme_id, scheme_name, why_match, documents_needed, confidence_score, and reasoning_path.",
         agent=agent,
         context=context_tasks,
         output_pydantic=MatcherOutput,
