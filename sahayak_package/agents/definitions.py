@@ -29,6 +29,10 @@ llm = LLM(
     model=OPENROUTER_MODEL,
     api_key=OPENROUTER_API_KEY,
     temperature=0.3,
+    # OpenRouter's free tier has been observed to silently stall a call for
+    # minutes under load instead of erroring. Fail fast instead so callers
+    # (e.g. intake_manager) can fall back rather than hang the whole app.
+    timeout=25,
 )
 
 
