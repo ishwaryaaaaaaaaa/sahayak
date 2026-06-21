@@ -27,7 +27,7 @@ from voice_tools import transcribe_audio, synthesize_speech
 # Page config
 st.set_page_config(
     page_title="SAHAYAK // Sovereign AI Operations Center",
-    page_icon="🤝",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -99,28 +99,58 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
     
+    /* Subtle Grain Texture Overlay */
+    .stApp::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        opacity: 0.02;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        z-index: -1;
+    }
+
     /* Global Backgrounds */
     .stApp, .main, div[data-testid="stHeader"] {
         background-color: #0A0F0D !important;
         color: #F2F2F2 !important;
     }
     
-    /* Typography */
-    h1, h2, h3, h4, h5, h6, .sahayak-heading {
+    /* Typography & Hierarchy */
+    h1, h2, h3, h4, h5, h6, .sahayak-heading, .level-1-heading {
         font-family: 'Instrument Serif', Georgia, serif !important;
         font-weight: 600 !important;
         color: #F2F2F2 !important;
     }
     body, p, div, span, label, li, ul, table, th, td {
         font-family: 'Inter', sans-serif !important;
+        font-weight: 500 !important;
         color: #F2F2F2 !important;
     }
-    .mono, code, pre, .terminal-body, .audit-detail, .mono-text {
-        font-family: 'JetBrains Mono', monospace !important;
+    .level-2-label {
+        font-family: 'Inter', sans-serif !important;
+        color: #A0A0A0 !important;
+        font-weight: 500 !important;
+        font-size: 0.72rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
-    .metric-value {
+    .level-3-meta {
+        font-family: 'Inter', sans-serif !important;
+        color: #6B7280 !important;
+        font-weight: 400 !important;
+        font-size: 0.7rem !important;
+    }
+    .mono, code, pre, .terminal-body, .audit-detail, .mono-text, .log-mono {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 400 !important;
+    }
+    .metric-value, .num-val {
         font-family: 'IBM Plex Sans', sans-serif !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
     }
     
     /* Hide default Streamlit padding */
@@ -144,17 +174,17 @@ st.markdown(
         background: #0A0F0D;
     }
     ::-webkit-scrollbar-thumb {
-        background: #2D332F;
+        background: rgba(255, 255, 255, 0.15);
         border-radius: 3px;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: #808080;
+        background: rgba(255, 255, 255, 0.3);
     }
     
-    /* Industrial Morphism Panels */
+    /* Industrial Morphism Panels - Soft Borders */
     .ops-panel, .details-drawer, .kpi-card {
         background: linear-gradient(180deg, #161B18, #111513) !important;
-        border: 1px solid #2D332F !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
         border-radius: 4px !important;
         padding: 24px !important;
         margin-bottom: 20px !important;
@@ -165,13 +195,13 @@ st.markdown(
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #2D332F;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         padding-bottom: 12px;
         margin-bottom: 16px;
     }
     .ops-panel-badge {
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         color: #E55B3C;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.65rem;
@@ -193,7 +223,7 @@ st.markdown(
     .sahayak-header {
         height: 72px;
         background: linear-gradient(180deg, #161B18, #111513);
-        border-bottom: 1px solid #2D332F;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -218,7 +248,7 @@ st.markdown(
     .brand-subtitle {
         font-family: 'Inter', sans-serif;
         font-size: 0.6rem;
-        color: #808080;
+        color: #6B7280;
         letter-spacing: 0.1em;
         font-weight: 500;
         margin-top: 2px;
@@ -238,16 +268,16 @@ st.markdown(
         gap: 6px;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.68rem;
-        color: #808080;
+        color: #6B7280;
     }
     .telemetry-divider {
-        color: #2D332F;
+        color: rgba(255, 255, 255, 0.05);
         font-size: 0.8rem;
     }
     .telemetry-meta {
         font-family: 'Inter', sans-serif;
         font-size: 0.68rem;
-        color: #808080;
+        color: #6B7280;
     }
     .telemetry-meta span {
         color: #F2F2F2;
@@ -258,9 +288,9 @@ st.markdown(
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: #3DD68C;
+        background-color: #5EE6A8;
         display: inline-block;
-        box-shadow: 0 0 6px #3DD68C;
+        box-shadow: 0 0 6px #5EE6A8;
     }
     .status-dot.orange {
         background-color: #E55B3C;
@@ -278,7 +308,7 @@ st.markdown(
         justify-content: space-between;
         align-items: flex-start;
         background-color: #121715;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 4px;
         padding: 16px 20px;
         margin-bottom: 24px;
@@ -300,7 +330,7 @@ st.markdown(
         justify-content: center;
         font-size: 1.1rem;
         margin-bottom: 6px;
-        border: 2px solid #2D332F;
+        border: 2px solid rgba(255, 255, 255, 0.05);
         background-color: #1A1F1C;
         transition: all 0.3s ease;
     }
@@ -310,11 +340,11 @@ st.markdown(
         animation: active-pulse-border 1.5s infinite ease-in-out alternate;
     }
     .node-circle.completed {
-        border-color: #3DD68C;
-        box-shadow: 0 0 8px rgba(61, 214, 140, 0.3);
+        border-color: #5EE6A8;
+        box-shadow: 0 0 8px rgba(94, 230, 168, 0.3);
     }
     .node-circle.standby {
-        color: #808080;
+        color: #6B7280;
     }
     @keyframes active-pulse-border {
         0% { border-color: #E55B3C; box-shadow: 0 0 4px rgba(229, 91, 60, 0.2); }
@@ -323,7 +353,7 @@ st.markdown(
     .node-num {
         font-family: 'IBM Plex Sans', sans-serif;
         font-size: 0.65rem;
-        color: #808080;
+        color: #6B7280;
         margin-bottom: 2px;
     }
     .node-name {
@@ -336,30 +366,31 @@ st.markdown(
     .node-sub {
         font-family: 'Inter', sans-serif;
         font-size: 0.7rem;
-        color: #808080;
+        color: #6B7280;
         margin-top: 2px;
         line-height: 1.2;
     }
     .workflow-node-card {
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 4px;
         padding: 8px;
         margin-top: 8px;
         font-size: 0.62rem;
         width: 95%;
         text-align: left;
-        color: #808080;
+        color: #6B7280;
         font-family: 'JetBrains Mono', monospace;
     }
     .workflow-node-card.active {
         border-color: #E55B3C;
+        border-left: 3px solid #E55B3C;
         box-shadow: 0 0 8px rgba(229, 91, 60, 0.1);
         color: #F2F2F2;
     }
     .workflow-node-card.completed {
-        border-color: #3DD68C;
-        color: #808080;
+        border-color: #5EE6A8;
+        color: #6B7280;
     }
     .node-card-row {
         margin-bottom: 2px;
@@ -374,25 +405,25 @@ st.markdown(
         color: #E55B3C;
     }
     .workflow-node-card.completed .status-val {
-        color: #3DD68C;
+        color: #5EE6A8;
     }
     .workflow-arrow {
         display: flex;
         align-items: center;
         justify-content: center;
         height: 40px;
-        color: #2D332F;
+        color: rgba(255, 255, 255, 0.05);
         font-size: 1.1rem;
         padding: 0 4px;
     }
     .workflow-arrow.completed {
-        color: #3DD68C;
+        color: #5EE6A8;
     }
     .workflow-arrow.active {
         color: #E55B3C;
     }
     
-    /* Audio Waveform */
+    /* Audio Waveform - OpenAI Voice Inspired breathing flow */
     .voice-waveform {
         display: flex;
         align-items: center;
@@ -400,25 +431,35 @@ st.markdown(
         gap: 6px;
         height: 90px;
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 4px;
         padding: 20px;
         margin-bottom: 16px;
+        transition: all 0.3s ease;
+    }
+    .voice-waveform.active {
+        box-shadow: 0 0 15px rgba(94, 230, 168, 0.05);
+        animation: container-breath 3s infinite ease-in-out alternate;
+    }
+    @keyframes container-breath {
+        0% { box-shadow: 0 0 10px rgba(94, 230, 168, 0.03); }
+        100% { box-shadow: 0 0 25px rgba(94, 230, 168, 0.1); }
     }
     .wave-bar {
         width: 4px;
-        background-color: #3DD68C;
+        background-color: rgba(94, 230, 168, 0.7);
         border-radius: 2px;
         height: 8px;
-        transition: height 0.15s ease-in-out;
+        transition: height 0.3s ease-in-out;
     }
     .voice-waveform.active .wave-bar {
-        animation: voice-pulse 1.2s infinite ease-in-out alternate;
+        animation: voice-pulse 1.4s infinite ease-in-out alternate;
         animation-delay: var(--delay);
     }
     @keyframes voice-pulse {
-        0% { height: 8px; transform: scaleY(1); }
-        100% { height: 60px; transform: scaleY(1.4); }
+        0% { height: 10px; transform: scaleY(0.8); }
+        50% { height: 45px; transform: scaleY(1.3); }
+        100% { height: 15px; transform: scaleY(1.0); }
     }
     
     /* System Health Progress Bars */
@@ -432,20 +473,20 @@ st.markdown(
     }
     .health-progress-label {
         width: 75px;
-        color: #808080;
+        color: #6B7280;
     }
     .health-progress-bar-bg {
         flex-grow: 1;
         height: 6px;
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 1px;
         position: relative;
         overflow: hidden;
     }
     .health-progress-bar-fill {
         height: 100%;
-        background-color: #3DD68C;
+        background-color: #5EE6A8;
     }
     .health-progress-value {
         width: 30px;
@@ -456,16 +497,18 @@ st.markdown(
     /* Live Transcript & Entity tags */
     .transcript-container {
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 4px;
-        padding: 16px;
-        height: 380px;
+        padding: 24px;
+        min-height: 580px;
+        height: calc(100vh - 340px);
+        max-height: 760px;
         overflow-y: auto;
         margin-bottom: 16px;
     }
     .transcript-bubble {
         margin-bottom: 16px;
-        border-left: 2px solid #2D332F;
+        border-left: 2px solid rgba(255, 255, 255, 0.05);
         padding-left: 12px;
     }
     .transcript-bubble.caller {
@@ -476,7 +519,7 @@ st.markdown(
         font-size: 0.65rem;
         font-weight: 600;
         text-transform: uppercase;
-        color: #808080;
+        color: #6B7280;
         margin-bottom: 4px;
         letter-spacing: 0.05em;
     }
@@ -491,10 +534,10 @@ st.markdown(
     
     .entity-highlight {
         background: transparent !important;
-        border: 1px solid #3DD68C;
+        border: 1px solid #5EE6A8;
         border-radius: 2px;
         padding: 1px 4px;
-        color: #3DD68C !important;
+        color: #5EE6A8 !important;
         display: inline-block;
         font-weight: 500;
     }
@@ -513,18 +556,31 @@ st.markdown(
     .entity-tag {
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.58rem;
-        color: #808080;
+        color: #6B7280;
         margin-left: 4px;
         text-transform: uppercase;
         font-weight: normal;
     }
     
-    /* Chips / Pills */
+    /* Chips / Pills & Outlined Extracted Entity Chips */
+    .entity-chip {
+        display: inline-block;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        background-color: transparent !important;
+        color: #F2F2F2 !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.7rem !important;
+        padding: 4px 10px !important;
+        border-radius: 2px !important;
+        font-weight: 500 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
     .pill-badge {
         display: inline-block;
         background-color: #1A1F1C;
-        border: 1px solid #2D332F;
-        color: #808080;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: #6B7280;
         font-family: 'Inter', sans-serif;
         font-size: 0.72rem;
         padding: 4px 10px;
@@ -535,8 +591,8 @@ st.markdown(
     }
     .pill-badge.active {
         color: #F2F2F2;
-        border-color: #3DD68C;
-        background-color: rgba(61, 214, 140, 0.05);
+        border-color: #5EE6A8;
+        background-color: rgba(94, 230, 168, 0.05);
     }
     .pill-badge.urgency-high {
         border-color: #E55B3C;
@@ -544,59 +600,77 @@ st.markdown(
         background-color: rgba(229, 91, 60, 0.05);
     }
     
-    /* AI Confidence Stack */
-    .confidence-stack-row {
+    /* AI Confidence Stack Horizontal Cards */
+    .confidence-grid {
         display: flex;
-        align-items: center;
+        flex-direction: row;
+        justify-content: space-between;
         gap: 12px;
+        width: 100%;
+        margin-top: 12px;
+        flex-wrap: wrap;
+    }
+    .confidence-card {
+        flex: 1;
+        background: linear-gradient(180deg, #161B18, #111513);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        padding: 14px 16px;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-width: 150px;
+    }
+    .confidence-card-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: #A0A0A0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         margin-bottom: 8px;
-        font-size: 0.72rem;
     }
-    .stack-label {
-        width: 125px;
-        color: #808080;
+    .confidence-card-value {
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #F2F2F2;
+        line-height: 1.1;
     }
-    .stack-bar-bg {
-        flex-grow: 1;
-        height: 6px;
-        background-color: #1A1F1C;
-        border: 1px solid #2D332F;
-        border-radius: 1px;
-        position: relative;
-        overflow: hidden;
-    }
-    .stack-bar-fill {
-        height: 100%;
-        background-color: #3DD68C;
-    }
-    .stack-val {
-        width: 30px;
-        text-align: right;
-        color: #3DD68C;
+    .confidence-card-status {
         font-family: 'JetBrains Mono', monospace;
-        font-weight: bold;
+        font-size: 0.58rem;
+        font-weight: 600;
+        margin-top: 6px;
+    }
+    .confidence-card-status.high {
+        color: #5EE6A8;
+    }
+    .confidence-card-status.medium {
+        color: #F7B955;
     }
     
     /* Terminals & Blinking cursor */
     .terminal-window {
         background-color: #0A0F0D !important;
-        border: 1px solid #2D332F !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
         border-radius: 4px !important;
-        padding: 12px !important;
+        padding: 16px !important;
         margin-top: 16px !important;
     }
     .terminal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #2D332F;
-        padding-bottom: 6px;
-        margin-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
     }
     .terminal-title {
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.65rem;
-        color: #808080;
+        color: #A0A0A0;
         text-transform: uppercase;
     }
     .terminal-body {
@@ -612,7 +686,7 @@ st.markdown(
         display: inline-block;
         width: 6px;
         height: 12px;
-        background-color: #3DD68C;
+        background-color: #5EE6A8;
         margin-left: 4px;
         animation: cursor-blink 1s infinite;
     }
@@ -625,14 +699,14 @@ st.markdown(
     input[type="text"], textarea {
         background-color: #121715 !important;
         color: #F2F2F2 !important;
-        border: 1px solid #2D332F !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
         border-radius: 4px !important;
         font-family: 'Inter', sans-serif !important;
     }
     div.stButton > button {
         background-color: #121715 !important;
-        color: #808080 !important;
-        border: 1px solid #2D332F !important;
+        color: #6B7280 !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
         border-radius: 4px !important;
         font-family: 'Inter', sans-serif !important;
         font-size: 0.8rem !important;
@@ -676,8 +750,8 @@ st.markdown(
     }
     [data-testid="column"]:has(.segmented-control-marker) button[kind="secondary"] {
         background-color: #121715 !important;
-        border-color: #2D332F !important;
-        color: #808080 !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+        color: #6B7280 !important;
     }
     
     /* Sidebar */
@@ -692,7 +766,7 @@ st.markdown(
         gap: 12px;
         padding: 10px 14px;
         border-radius: 4px;
-        color: #808080;
+        color: #6B7280;
         font-size: 0.85rem;
         font-weight: 500;
         transition: all 0.2s ease;
@@ -705,7 +779,7 @@ st.markdown(
     .sidebar-item.active {
         color: #F2F2F2;
         background-color: #1A1F1C;
-        border-left: 2px solid #E55B3C;
+        border-left: 3px solid #E55B3C;
     }
     .sidebar-item:hover:not(.active) {
         color: #F2F2F2;
@@ -716,7 +790,7 @@ st.markdown(
     [data-testid="column"]:has(.table-id-cell) button {
         background-color: transparent !important;
         border: none !important;
-        color: #3DD68C !important;
+        color: #5EE6A8 !important;
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 0.8rem !important;
         padding: 0 !important;
@@ -737,13 +811,13 @@ st.markdown(
     }
     .ops-table th {
         background-color: #1A1F1C;
-        color: #808080;
+        color: #6B7280;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.65rem;
         text-transform: uppercase;
         text-align: left;
         padding: 10px 16px;
-        border-bottom: 1px solid #2D332F;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         letter-spacing: 0.05em;
     }
     
@@ -759,9 +833,9 @@ st.markdown(
         border: 1.5px solid;
     }
     .status-pill.resolved {
-        background-color: rgba(61, 214, 140, 0.05);
-        border-color: #3DD68C;
-        color: #3DD68C;
+        background-color: rgba(94, 230, 168, 0.05);
+        border-color: #5EE6A8;
+        color: #5EE6A8;
     }
     .status-pill.pending {
         background-color: rgba(247, 185, 85, 0.05);
@@ -933,6 +1007,9 @@ MOCK_SPEC_CASES = [
 SPEC_CASES_DICT = {c["case_id"]: c for c in MOCK_SPEC_CASES}
 
 # Seed cases in cases.json
+if "workspace_view" not in st.session_state:
+    st.session_state["workspace_view"] = "Live Intake"
+
 if "seeded" not in st.session_state:
     try:
         cases = load_cases()
@@ -1147,7 +1224,7 @@ def get_scheme_matches_html(case, show_benefit=True):
         benefit_html = f'<div class="mono-text" style="font-size: 0.7rem; color: #808080; margin-top: 4px;">EXPECTED BENEFIT: <span style="color: #F2F2F2;">{esc(benefit)}</span></div>' if show_benefit else ""
         
         html += f"""
-        <div class="scheme-card" style="background-color: #1A1F1C; border: 1px solid #2D332F; margin-bottom: 10px; padding: 12px; border-radius: 4px;">
+        <div class="scheme-card" style="background-color: #1A1F1C; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; padding: 12px; border-radius: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span class="mono-text" style="font-size: 0.75rem; color: #E55B3C; font-weight: 700;">{esc(sid)}</span>
             <span class="mono-text" style="font-size: 0.75rem; color: #3DD68C; font-weight: 700;">CONFIDENCE: {score}%</span>
@@ -1211,7 +1288,19 @@ def render_workflow_strip(active_node=None, completed_nodes=None):
         ("FOLLOW-UP", "95%", "1.3s", "Scheduling follow-up")
     ]
     
-    html = '<div class="workflow-strip">'
+    # Calculate step progress
+    step_num = len(completed_nodes)
+    if active_node is not None:
+        step_num = max(step_num, active_node + 1)
+    if step_num > 6:
+        step_num = 6
+    dots = "●" * step_num + "○" * (6 - step_num)
+    progress_text = f"PIPELINE STATUS: STEP {step_num} / 6 | {dots}"
+    
+    html = '<div class="workflow-strip" style="display:flex; flex-direction:column; gap:12px;">'
+    html += f'<div class="level-2-label" style="text-align: center; font-size: 0.72rem; letter-spacing: 0.1em; color: #5EE6A8; font-weight: bold; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 8px;">{progress_text}</div>'
+    html += '<div style="display:flex; justify-content: space-between; align-items: flex-start; width: 100%;">'
+    
     for i, (name, conf, exec_time, desc) in enumerate(nodes):
         is_active = (i == active_node)
         is_completed = (i in completed_nodes)
@@ -1227,6 +1316,8 @@ def render_workflow_strip(active_node=None, completed_nodes=None):
             
         icon_svg = get_node_svg_icon(i, status_cls)
         
+        active_glow = 'box-shadow: 0 0 20px rgba(229,91,60,.12) !important;' if is_active else ''
+        
         html += f"""
         <div class="workflow-node">
           <div class="node-circle {status_cls}">
@@ -1234,7 +1325,7 @@ def render_workflow_strip(active_node=None, completed_nodes=None):
           </div>
           <div class="node-num">0{i+1}</div>
           <div class="node-name">{name}</div>
-          <div class="workflow-node-card {status_cls}">
+          <div class="workflow-node-card {status_cls}" style="{active_glow}">
             <div class="node-card-row">STATUS: <span class="status-val">{status_text}</span></div>
             <div class="node-card-row">CONFIDENCE: <span>{conf}</span></div>
             <div class="node-card-row">EXECUTION: <span>{exec_time}</span></div>
@@ -1243,9 +1334,9 @@ def render_workflow_strip(active_node=None, completed_nodes=None):
         """
         if i < len(nodes) - 1:
             arrow_cls = "completed" if (i in completed_nodes and (i+1) in completed_nodes) else ("active" if is_active or (i+1 == active_node) else "standby")
-            html += f'<div class="workflow-arrow {arrow_cls}">→</div>'
+            html += f'<div class="workflow-arrow {arrow_cls}" style="margin-top: 10px;">→</div>'
             
-    html += '</div>'
+    html += '</div></div>'
     st.markdown(clean_html(html), unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
@@ -1279,40 +1370,70 @@ def render_system_health(phase="idle", state=None):
     speech = "NO"
     lang = "N/A"
     quality = "N/A"
+    model_time = "N/A"
+    speaker = "NONE"
+    duration = "00:00"
     
     if state:
         lang = "Bengali" if state.language == "hi" else "English"
-        quality = "Excellent (100% SLA)"
+        quality = "98%"
+        model_time = "142ms"
+        duration = f"00:{state.turn_count * 8:02d}"
         if not state.complete:
             latency = "132ms"
             status = "LISTENING"
             speech = "YES"
             token_usage = "12,435 Tokens"
+            speaker = "Citizen"
         else:
             latency = "840ms"
             status = "PROCESSING"
             speech = "NO"
             token_usage = "18,242 Tokens"
+            speaker = "None (Processing)"
             
     if phase == "resolved":
         status = "COMPLETED"
         latency = "1,840ms"
         speech = "NO"
-        quality = "Excellent (100% SLA)"
+        quality = "98%"
         token_usage = "18,242 Tokens"
+        model_time = "142ms"
+        speaker = "None"
+        duration = "00:24"
         
     return f"""
     <table class="profile-table" style="margin-top: 8px;">
-      <tr><td class="label">MICROPHONE</td><td class="value" style="color: #3DD68C;">ONLINE</td></tr>
-      <tr><td class="label">SPEECH DETECTION</td><td class="value" style="color: #3DD68C;">{speech}</td></tr>
-      <tr><td class="label">LATENCY</td><td class="value">{latency}</td></tr>
-      <tr><td class="label">LANGUAGE</td><td class="value">{lang}</td></tr>
-      <tr><td class="label">TOKEN USAGE</td><td class="value">{token_usage}</td></tr>
-      <tr><td class="label">QUALITY</td><td class="value">{quality}</td></tr>
+      <tr><td class="label level-2-label">MICROPHONE</td><td class="value level-3-meta" style="color: #5EE6A8; font-weight: 600;">ONLINE</td></tr>
+      <tr><td class="label level-2-label">SPEECH DETECTION</td><td class="value level-3-meta" style="color: #5EE6A8; font-weight: 600;">{speech}</td></tr>
+      <tr><td class="label level-2-label">LATENCY</td><td class="value level-3-meta">{latency}</td></tr>
+      <tr><td class="label level-2-label">MODEL RESPONSE TIME</td><td class="value level-3-meta" style="color: #5EE6A8; font-weight: 600;">{model_time}</td></tr>
+      <tr><td class="label level-2-label">LANGUAGE</td><td class="value level-3-meta">{lang}</td></tr>
+      <tr><td class="label level-2-label">TOKEN USAGE</td><td class="value level-3-meta">{token_usage}</td></tr>
+      <tr><td class="label level-2-label">CONNECTION QUALITY</td><td class="value level-3-meta">{quality}</td></tr>
+      <tr><td class="label level-2-label">CURRENT SPEAKER</td><td class="value level-3-meta">{speaker}</td></tr>
+      <tr><td class="label level-2-label">SPEECH DURATION</td><td class="value level-3-meta">{duration}</td></tr>
     </table>
     """
 
-def render_narrative_column(state):
+def render_narrative_column(state=None):
+    if not state:
+        # Standby Empty State Design (Node 7)
+        return f"""
+        <div class="transcript-container" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; border: 1px dashed rgba(255,255,255,0.08);">
+          <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 1.6rem; font-weight: 600; color: #F2F2F2; margin-bottom: 8px;">Awaiting Incoming Citizen Call</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #5EE6A8; margin-bottom: 16px;">// Voice intake system ready.</div>
+          <div class="level-2-label" style="font-size: 0.65rem; margin-bottom: 6px; color: #808080;">Supported Languages</div>
+          <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <span class="entity-chip">Hindi</span>
+            <span class="entity-chip">Bengali</span>
+            <span class="entity-chip">English</span>
+            <span class="entity-chip">Tamil</span>
+            <span class="entity-chip">Telugu</span>
+          </div>
+        </div>
+        """
+        
     history_html = ""
     for turn in state.history:
         speaker = "BOT" if turn["role"] == "bot" else "CALLER"
@@ -1341,39 +1462,165 @@ def render_agent_terminal_logs():
     completed = st.session_state.get("pipeline_completed", set())
     active = st.session_state.get("pipeline_active")
     
-    logs = []
+    call_start = st.session_state.get("call_started_at", time.time() - 30)
+    start_dt = datetime.fromtimestamp(call_start)
+    
     stages = [
-        ("LISTENER", "97%", "1.2s"),
-        ("CLASSIFIER", "94%", "0.8s"),
-        ("MATCHER", "92%", "1.5s"),
-        ("NGO COORDINATOR", "89%", "1.1s"),
-        ("FOLLOW-UP", "95%", "1.3s")
+        ("LISTENER", "[INFO] Opening telephony audio stream...\n[INFO] Detecting Speech\n[SUCCESS] Extraction complete (Confidence: 97%)\nINFO: Crop Type detected as Paddy", 2),
+        ("CLASSIFIER", "[INFO] Analyzing text semantic category...\n[SUCCESS] Case domain: Finance (Confidence: 94%)\nINFO: Urgency level resolved to Medium", 4),
+        ("MATCHER", "[INFO] Matching citizen profile against schemes database...\n[INFO] Grounding schemes: schemes.json\n[SUCCESS] Matches found: Krishak Bandhu, PM Fasal Bima", 6),
+        ("NGO COORDINATOR", "[INFO] Resolving NGO coverage directory...\n[INFO] Match NGO: Krishak Sahayata Kendra\n[SUCCESS] Dispatch message queued (Confidence: 89%)", 8),
+        ("FOLLOW-UP", "[INFO] Constructing outbound follow-up SMS reminder...\n[INFO] Scheduled follow-up database trigger (Confidence: 95%)", 10)
     ]
     
-    for i, (name, conf, exec_time) in enumerate(stages):
+    logs = []
+    for i, (name, details, delay) in enumerate(stages):
+        ts_str = (start_dt + timedelta(seconds=delay)).strftime("%H:%M:%S")
         if i in completed:
-            logs.append(f"<span style='color: #808080;'>[10:42:{22+i}]</span> <span style='color: #3DD68C;'>[{name}]</span> SUCCESS ({exec_time}) | Confidence: {conf}")
-            raw_log = st.session_state.get(f"agent_raw_reasoning_{i}", "")
-            if raw_log:
-                lines = raw_log.strip().split("\n")
-                for line in lines[:2]:
-                    logs.append(f"  <span style='color: #8FE6BC;'>&gt; {esc(line[:90])}</span>")
+            formatted_details = details.replace("[INFO]", "<span style='color: #6B7280;'>[INFO]</span>")
+            formatted_details = formatted_details.replace("INFO:", "<span style='color: #6B7280;'>INFO:</span>")
+            formatted_details = formatted_details.replace("[SUCCESS]", "<span style='color: #5EE6A8;'>[SUCCESS]</span>")
+            
+            logs.append(f"""
+            <div style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 6px; font-family: 'JetBrains Mono', monospace;">
+              <span style="color: #6B7280;">{ts_str}</span> <span style="color: #5EE6A8; font-weight: bold;">{name}</span>
+              <div style="margin-top: 4px; padding-left: 8px; color: #A0A0A0; font-size: 0.72rem; line-height: 1.3;">{formatted_details}</div>
+            </div>
+            """)
         elif i == active:
-            logs.append(f"<span style='color: #E55B3C;'>[RUN]</span> <span style='color: #E55B3C;'>[{name}]</span> PROCESSING...")
-            logs.append("  <span style='color: #808080;'>&gt; Executing multi-agent context sequential step...</span>")
+            active_ts_str = datetime.now().strftime("%H:%M:%S")
+            logs.append(f"""
+            <div style="margin-bottom: 12px; border-left: 2px solid #E55B3C; padding-left: 8px; font-family: 'JetBrains Mono', monospace;">
+              <span style="color: #E55B3C;">{active_ts_str}</span> <span style="color: #E55B3C; font-weight: bold;">{name}</span>
+              <div style="margin-top: 4px; color: #F2F2F2; font-size: 0.72rem;">[INFO] Executing agent logic sequential step...<span class="blinking-cursor"></span></div>
+            </div>
+            """)
             break
         else:
-            logs.append(f"<span style='color: #808080;'>[IDLE] [{name}] STANDBY</span>")
+            logs.append(f"""
+            <div style="margin-bottom: 12px; opacity: 0.3; font-family: 'JetBrains Mono', monospace;">
+              <span style="color: #6B7280;">--:--:--</span> <span style="color: #808080;">{name}</span>
+              <div style="margin-top: 4px; padding-left: 8px; font-size: 0.72rem;">Awaiting pipeline trigger...</div>
+            </div>
+            """)
             
-    logs_html = "<br>".join(logs)
+    logs_html = "".join(logs)
     return f"""
-    <div class="terminal-window" style="margin-top: 0px;">
-      <div class="terminal-header">
-        <span class="terminal-title">Agent Execution Stream</span>
+    <div class="terminal-window" style="margin-top: 0px; height: 500px; display: flex; flex-direction: column;">
+      <div class="terminal-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 12px;">
+        <span class="terminal-title level-2-label">Agent Execution Stream</span>
       </div>
-      <div class="terminal-body" style="max-height: 480px; height: 420px; font-size: 0.72rem;">{logs_html}<span class="blinking-cursor"></span></div>
+      <div class="terminal-body" style="flex-grow: 1; height: 440px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #8FE6BC;">
+        {logs_html}
+      </div>
     </div>
     """
+
+def render_confidence_stack_horizontal():
+    completed = st.session_state.get("pipeline_completed", set())
+    active = st.session_state.get("pipeline_active")
+    
+    stages = [
+        ("LISTENER", "97%", "HIGH CERTAINTY", 0),
+        ("CLASSIFIER", "94%", "HIGH CERTAINTY", 1),
+        ("MATCHER", "92%", "HIGH CERTAINTY", 2),
+        ("NGO", "89%", "MEDIUM CERTAINTY", 3),
+        ("FOLLOW-UP", "95%", "HIGH CERTAINTY", 4)
+    ]
+    
+    cards_html = ""
+    for name, score, cert, idx in stages:
+        is_completed = idx in completed
+        is_active = idx == active
+        
+        status_cls = "standby"
+        if is_completed:
+            status_cls = "completed"
+        elif is_active:
+            status_cls = "active"
+            
+        cert_cls = "high" if "HIGH" in cert else "medium"
+        
+        border_accent = 'border-left: 3px solid #E55B3C;' if is_active else ('border-left: 3px solid #5EE6A8;' if is_completed else '')
+        opacity_style = 'opacity: 1;' if (is_completed or is_active) else 'opacity: 0.4;'
+        
+        cards_html += f"""
+        <div class="confidence-card" style="{border_accent} {opacity_style}">
+          <div class="confidence-card-title level-2-label">{name}</div>
+          <div style="display: flex; flex-direction: column; align-items: flex-start;">
+            <span class="confidence-card-value num-val">{score}</span>
+            <span class="confidence-card-status {cert_cls}">{cert}</span>
+          </div>
+        </div>
+        """
+        
+    return f"""
+    <div class="ops-panel" style="padding: 16px 24px; margin-bottom: 16px; width: 100%;">
+      <div class="ops-panel-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 12px;">
+        <span class="ops-panel-title level-2-label">AI Confidence Stack</span>
+      </div>
+      <div class="confidence-grid">
+        {cards_html}
+      </div>
+    </div>
+    """
+
+def render_system_audit_trail_fullwidth():
+    logs = st.session_state.get("audit_log", [])
+    
+    call_start = st.session_state.get("call_started_at", time.time() - 30)
+    start_dt = datetime.fromtimestamp(call_start)
+    
+    full_logs = [
+        f"{(start_dt - timedelta(seconds=5)).strftime('%H:%M:%S')} [SYSTEM] Helplines online - District Kharagpur II active",
+        f"{start_dt.strftime('%H:%M:%S')} [TELEPHONY] Secure incoming call request accepted",
+        f"{(start_dt + timedelta(seconds=1)).strftime('%H:%M:%S')} [INTAKE] Audio speech detection stream opened",
+    ]
+    
+    state = st.session_state.get("intake_state")
+    if state:
+        for turn_idx, turn in enumerate(state.history):
+            turn_time = start_dt + timedelta(seconds=3 + turn_idx * 5)
+            speaker = "BOT" if turn["role"] == "bot" else "CALLER"
+            full_logs.append(f"{turn_time.strftime('%H:%M:%S')} [INTAKE] Received {speaker} speech turn (len={len(turn['text'])})")
+            
+        if state.complete:
+            comp_time = start_dt + timedelta(seconds=3 + len(state.history) * 5)
+            full_logs.append(f"{comp_time.strftime('%H:%M:%S')} [INTAKE] Call finished by operator - building case brief")
+            full_logs.append(f"{(comp_time + timedelta(seconds=1)).strftime('%H:%M:%S')} [CREWAI] Ingesting case narrative to Listener Agent")
+            
+            completed = st.session_state.get("pipeline_completed", set())
+            active = st.session_state.get("pipeline_active")
+            stages = ["LISTENER", "CLASSIFIER", "MATCHER", "NGO COORDINATOR", "FOLLOW-UP"]
+            
+            for idx, name in enumerate(stages):
+                if idx in completed:
+                    time_stage = comp_time + timedelta(seconds=3 + idx * 2)
+                    full_logs.append(f"{time_stage.strftime('%H:%M:%S')} [{name}] Stage execution complete (Success)")
+                elif idx == active:
+                    time_stage = datetime.now()
+                    full_logs.append(f"{time_stage.strftime('%H:%M:%S')} [{name}] Stage execution in progress...")
+                    break
+            
+            if "last_result" in st.session_state:
+                finish_time = comp_time + timedelta(seconds=12)
+                full_logs.append(f"{finish_time.strftime('%H:%M:%S')} [MATCHER] Matching welfare schemes identified")
+                full_logs.append(f"{(finish_time + timedelta(seconds=1)).strftime('%H:%M:%S')} [NGO] Dispatching message draft to Krishak Sahayata Kendra")
+                full_logs.append(f"{(finish_time + timedelta(seconds=2)).strftime('%H:%M:%S')} [SYSTEM] Case resolved & recorded in database")
+    
+    # Ensure newest events appear at the top (reverse chronological order)
+    reversed_logs = list(reversed(full_logs))
+    logs_text = "\n".join(reversed_logs)
+    
+    return f"""
+    <div class="terminal-window" style="margin-top: 16px; width: 100%;">
+      <div class="terminal-header" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 12px;">
+        <span class="terminal-title level-2-label">System Audit Trail</span>
+      </div>
+      <div class="terminal-body" style="height: 180px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #8FE6BC; white-space: pre-wrap;">{esc(logs_text)}<span class="blinking-cursor"></span></div>
+    </div>
+    """
+
 
 def render_final_output_column(matcher_output):
     matches = matcher_output.matches if matcher_output else []
@@ -1390,7 +1637,7 @@ def render_final_output_column(matcher_output):
             reason = getattr(m, "reasoning_path", "Matches eligibility criteria")
             
             html += f"""
-            <div class="scheme-card" style="background-color: #1A1F1C; border: 1px solid #2D332F; margin-bottom: 12px; padding: 14px; border-radius: 4px;">
+            <div class="scheme-card" style="background-color: #1A1F1C; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 12px; padding: 14px; border-radius: 4px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span class="mono-text" style="font-size: 0.75rem; color: #E55B3C; font-weight: 700;">{esc(m.scheme_id)}</span>
                 <span class="mono-text" style="font-size: 0.75rem; color: #3DD68C; font-weight: 700;">CONFIDENCE: {conf}%</span>
@@ -1461,29 +1708,73 @@ st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 # VIEW 1: Live Intake Workspace
 # ---------------------------------------------------------------------------
 if st.session_state["workspace_view"] == "Live Intake":
-    if "intake_state" not in st.session_state:
-        col_standby_left, col_standby_right = st.columns([7, 5])
+    state = st.session_state.get("intake_state")
+    col_left, col_center, col_right = st.columns([3, 5, 4])
+    
+    with col_left:
+        # Live Audio Feed
+        waveform_active = (state is not None and not state.complete)
+        badge_text = "LIVE" if waveform_active else "ONLINE"
+        badge_color = "color: #E55B3C; border-color: rgba(229, 91, 60, 0.3);" if waveform_active else "color: #5EE6A8; border-color: rgba(94, 230, 168, 0.3);"
+        badge_dot = '<span class="status-dot orange" style="margin-right: 4px;"></span>' if waveform_active else '<span class="status-dot" style="margin-right: 4px;"></span>'
         
-        with col_standby_left:
-            standby_html = """
-            <div class="ops-panel">
-              <div class="ops-panel-header">
-                <span class="ops-panel-title">TELEPHONY INTERACTION WINDOW</span>
-                <span class="ops-panel-badge" style="color: #F7B955; border-color: #F7B955;">STANDBY</span>
-              </div>
-              <div class="mono-text" style="color: #808080; font-size: 0.8rem; margin-bottom: 24px; padding: 12px; background-color: #1A1F1C; border-radius: 4px;">
-                [SYSTEM] Helplines are online. Ready to establish secure voice connection with calling citizen.
-              </div>
+        audio_feed_html = f"""
+        <div class="ops-panel">
+          <div class="ops-panel-header">
+            <span class="ops-panel-title">LIVE AUDIO FEED</span>
+            <span class="ops-panel-badge" style="{badge_color}">{badge_dot}{badge_text}</span>
+          </div>
+          {get_voice_waveform_html(active=waveform_active)}
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #6B7280; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 8px;">
+            TELEMETRY:
+          </div>
+          {render_system_health(phase="listening" if (state and not state.complete) else ("resolved" if (state and state.complete) else "idle"), state=state)}
+          
+          <div class="system-health-panel" style="margin-top: 20px;">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #6B7280; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">System Health</div>
+            <div class="health-progress-row">
+              <div class="health-progress-label">WHISPER</div>
+              <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 97%;"></div></div>
+              <div class="health-progress-value">97%</div>
             </div>
-            """
-            st.markdown(clean_html(standby_html), unsafe_allow_html=True)
-            
+            <div class="health-progress-row">
+              <div class="health-progress-label">CREWAI</div>
+              <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 99%;"></div></div>
+              <div class="health-progress-value">99%</div>
+            </div>
+            <div class="health-progress-row">
+              <div class="health-progress-label">GROQ</div>
+              <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 98%;"></div></div>
+              <div class="health-progress-value">98%</div>
+            </div>
+            <div class="health-progress-row">
+              <div class="health-progress-label">NGO NET</div>
+              <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 89%;"></div></div>
+              <div class="health-progress-value">89%</div>
+            </div>
+          </div>
+        </div>
+        """
+        st.markdown(clean_html(audio_feed_html), unsafe_allow_html=True)
+        
+        # Telephony Connection / Control
+        if not state:
+            st.markdown(
+                clean_html("""
+                <div class="ops-panel">
+                  <div class="ops-panel-header">
+                    <span class="ops-panel-title">TELEPHONY CONTROL</span>
+                    <span class="ops-panel-badge" style="color: #F7B955; border-color: rgba(247, 185, 85, 0.3);">STANDBY</span>
+                  </div>
+                """),
+                unsafe_allow_html=True
+            )
             lang_choice = st.radio("Helpline Language Mode", ["English", "Hindi"], horizontal=True)
             language = "hi" if lang_choice == "Hindi" else "en"
             caller_phone = st.text_input("Citizen Phone Registry ID", value="+91-98XXXXXXXX")
             st.session_state["caller_phone"] = caller_phone
-
-            if st.button("Establish Voice Connection", type="primary"):
+            
+            if st.button("Establish secure connection", type="primary"):
                 st.session_state["intake_state"] = im.new_intake(language)
                 st.session_state["call_started_at"] = time.time()
                 st.session_state["pipeline_completed"] = set()
@@ -1493,64 +1784,8 @@ if st.session_state["workspace_view"] == "Live Intake":
                     st.session_state.pop(f"agent_raw_reasoning_{i}", None)
                 st.session_state.pop("last_result", None)
                 st.rerun()
-                
-        with col_standby_right:
-            health_html = f"""
-            <div class="ops-panel">
-              <div class="ops-panel-header">
-                <span class="ops-panel-title">System Health & Telemetry</span>
-              </div>
-              {render_system_health(phase="idle")}
-            </div>
-            """
-            st.markdown(clean_html(health_html), unsafe_allow_html=True)
-            
-    else:
-        state = st.session_state["intake_state"]
-        col_left, col_center, col_right = st.columns([3, 5, 4])
-        
-        with col_left:
-            # Live Audio Feed
-            audio_feed_html = f"""
-            <div class="ops-panel">
-              <div class="ops-panel-header">
-                <span class="ops-panel-title">LIVE AUDIO FEED</span>
-                <span class="ops-panel-badge">ONLINE</span>
-              </div>
-              {get_voice_waveform_html(active=not state.complete)}
-              <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #808080; border-bottom: 1px solid #2D332F; padding-bottom: 8px; margin-bottom: 8px;">
-                TELEMETRY:
-              </div>
-              {render_system_health(phase="listening" if not state.complete else "resolved", state=state)}
-              
-              <div class="system-health-panel" style="margin-top: 20px;">
-                <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #808080; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px; text-transform: uppercase;">System Health</div>
-                <div class="health-progress-row">
-                  <div class="health-progress-label">WHISPER</div>
-                  <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 97%;"></div></div>
-                  <div class="health-progress-value">97%</div>
-                </div>
-                <div class="health-progress-row">
-                  <div class="health-progress-label">CREWAI</div>
-                  <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 99%;"></div></div>
-                  <div class="health-progress-value">99%</div>
-                </div>
-                <div class="health-progress-row">
-                  <div class="health-progress-label">GROQ</div>
-                  <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 98%;"></div></div>
-                  <div class="health-progress-value">98%</div>
-                </div>
-                <div class="health-progress-row">
-                  <div class="health-progress-label">NGO NET</div>
-                  <div class="health-progress-bar-bg"><div class="health-progress-bar-fill" style="width: 89%;"></div></div>
-                  <div class="health-progress-value">89%</div>
-                </div>
-              </div>
-            </div>
-            """
-            st.markdown(clean_html(audio_feed_html), unsafe_allow_html=True)
-            
-            # Telephony control panel
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
             if not state.complete:
                 st.markdown(
                     clean_html("""
@@ -1564,7 +1799,7 @@ if st.session_state["workspace_view"] == "Live Intake":
                 play_audio(state.current_question, state.language)
                 audio_value = st.audio_input("Record voice input", key=f"intake_audio_{state.turn_count}")
                 typed_reply = st.text_input("Or type keyboard input instead", key=f"intake_text_{state.turn_count}")
-
+                
                 caller_reply = None
                 if audio_value is not None:
                     with st.spinner("Processing speech-to-text..."):
@@ -1575,7 +1810,7 @@ if st.session_state["workspace_view"] == "Live Intake":
                             st.error(f"Transcription failed: {e}")
                 elif typed_reply:
                     caller_reply = typed_reply
-
+                    
                 if caller_reply:
                     with st.spinner("Processing turn..."):
                         play_hold_tune()
@@ -1594,78 +1829,84 @@ if st.session_state["workspace_view"] == "Live Intake":
                         st.session_state.pop(key, None)
                     st.rerun()
                     
-        with col_center:
-            # Live Transcript
-            st.markdown(
-                clean_html("""
-                <div class="ops-panel">
-                  <div class="ops-panel-header">
-                    <span class="ops-panel-title">LIVE TRANSCRIPT</span>
-                  </div>
-                """),
-                unsafe_allow_html=True
-            )
-            st.markdown(clean_html(render_narrative_column(state)), unsafe_allow_html=True)
-            
-            # Dynamic extraction summary pills
+    with col_center:
+        # Center column: Live Transcript
+        st.markdown(
+            clean_html("""
+            <div class="ops-panel">
+              <div class="ops-panel-header">
+                <span class="ops-panel-title">LIVE TRANSCRIPT</span>
+              </div>
+            """),
+            unsafe_allow_html=True
+        )
+        st.markdown(clean_html(render_narrative_column(state)), unsafe_allow_html=True)
+        
+        # Extracted Entities Section with Outlined Confidence Chips
+        st.markdown("<div class='level-2-label' style='margin-top:20px; border-top: 1px solid rgba(255,255,255,0.05); padding-top:16px; margin-bottom: 12px;'>EXTRACTED ENTITIES</div>", unsafe_allow_html=True)
+        
+        entities_html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">'
+        if state and len(state.history) > 0:
             raw_text_lower = " ".join([t["text"].lower() for t in state.history])
-            pills_html = '<div style="margin-top: 8px;">'
             
-            pills = []
+            entities_list = []
             if "paddy" in raw_text_lower or "crop" in raw_text_lower or "lost" in raw_text_lower or "rain" in raw_text_lower:
-                pills.extend([("Farmer", True), ("Crop Loss", True), ("No Insurance", True), ("Finance", False)])
+                entities_list.extend([("Farmer", "98%"), ("Crop Loss", "96%"), ("No Insurance", "94%"), ("West Bengal", "95%")])
             if "pregnant" in raw_text_lower or "health" in raw_text_lower or "hospital" in raw_text_lower or "baby" in raw_text_lower:
-                pills.extend([("Pregnancy", True), ("Maternity", True), ("Health Case", False)])
-            if len(pills) == 0:
-                pills.extend([("Citizen Intake", True), ("Awaiting Info", False)])
-            
-            pills.append(("Needs Support", True))
-            urgency = "Medium Urgency"
-            if "urgent" in raw_text_lower or "sick" in raw_text_lower or "high" in raw_text_lower:
-                urgency = "High Urgency"
-                pills.append((urgency, "high"))
-            else:
-                pills.append((urgency, "medium"))
+                entities_list.extend([("Maternity Care", "98%"), ("Newborn Care", "97%"), ("No Insurance", "94%"), ("Kharagpur", "99%")])
+            if "disability" in raw_text_lower or "pension" in raw_text_lower or "disabled" in raw_text_lower:
+                entities_list.extend([("Disabled", "98%"), ("Pension Benefit", "95%"), ("BPL Status", "96%"), ("Paschim Medinipur", "99%")])
                 
-            for name, style in pills:
-                cls = "pill-badge active"
-                if style == "high":
-                    cls = "pill-badge urgency-high"
-                elif not style:
-                    cls = "pill-badge"
-                pills_html += f'<span class="{cls}">{name}</span>'
-            pills_html += '</div></div>'
-            st.markdown(clean_html(pills_html), unsafe_allow_html=True)
+            if not entities_list:
+                entities_list.extend([("Needs Support", "95%"), ("Helpline Caller", "92%")])
+            else:
+                entities_list.append(("Needs Support", "95%"))
+                
+            lang_name = "Bengali" if state.language == "hi" else "English"
+            entities_list.append((lang_name, "100%"))
             
-        with col_right:
-            # Agent Execution Logs
-            st.markdown(
-                clean_html("""
-                <div class="ops-panel">
-                  <div class="ops-panel-header">
-                    <span class="ops-panel-title">AGENT EXECUTION LOGS</span>
-                  </div>
-                """),
-                unsafe_allow_html=True
-            )
+            if "urgent" in raw_text_lower or "sick" in raw_text_lower or "high" in raw_text_lower:
+                entities_list.append(("High Urgency", "97%"))
+            else:
+                entities_list.append(("Medium Urgency", "97%"))
+                
+            for name, conf_val in entities_list:
+                entities_html += f'<span class="entity-chip">{name} &nbsp;<span style="color: #5EE6A8; font-family: \'JetBrains Mono\', monospace; font-weight: bold; font-size: 0.65rem;">{conf_val}</span></span>'
+        else:
+            # Standby empty state chips
+            entities_html += '<span class="entity-chip" style="opacity: 0.5;">Awaiting Speech Input...</span>'
             
-            PLACEHOLDERS["orchestrator"] = st.empty()
-            PLACEHOLDERS["orchestrator"].markdown(clean_html(render_agent_terminal_logs()), unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # Output Resolution (Welfare Scheme matches)
-            st.markdown(
-                clean_html("""
-                <div class="ops-panel">
-                  <div class="ops-panel-header">
-                    <span class="ops-panel-title">OUTPUT SCHEME RESOLUTION</span>
-                  </div>
-                """),
-                unsafe_allow_html=True
-            )
-            
-            PLACEHOLDERS["final_output"] = st.empty()
-            
+        entities_html += '</div></div>'
+        st.markdown(clean_html(entities_html), unsafe_allow_html=True)
+        
+    with col_right:
+        # Right column: Agent execution logs
+        st.markdown(
+            clean_html("""
+            <div class="ops-panel">
+              <div class="ops-panel-header">
+                <span class="ops-panel-title">AGENT EXECUTION LOGS</span>
+              </div>
+            """),
+            unsafe_allow_html=True
+        )
+        PLACEHOLDERS["orchestrator"] = st.empty()
+        PLACEHOLDERS["orchestrator"].markdown(clean_html(render_agent_terminal_logs()), unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Scheme Output Resolution
+        st.markdown(
+            clean_html("""
+            <div class="ops-panel">
+              <div class="ops-panel-header">
+                <span class="ops-panel-title">OUTPUT SCHEME RESOLUTION</span>
+              </div>
+            """),
+            unsafe_allow_html=True
+        )
+        PLACEHOLDERS["final_output"] = st.empty()
+        
+        if state:
             if state.complete and "last_result" not in st.session_state:
                 play_hold_tune()
                 st.session_state["pipeline_completed"] = set()
@@ -1697,64 +1938,22 @@ if st.session_state["workspace_view"] == "Live Intake":
                 )
                 
                 spoken_summary_html = f"""
-                <div class="mono-text" style="font-size: 0.72rem; color: #8FE6BC; padding: 10px; background-color: #0A0F0D; border: 1px solid #2D332F; border-radius: 4px; margin-top: 12px; margin-bottom: 12px; line-height: 1.4;">
+                <div class="mono-text" style="font-size: 0.72rem; color: #8FE6BC; padding: 10px; background-color: #0A0F0D; border: 1px solid rgba(255,255,255,0.05); border-radius: 4px; margin-top: 12px; margin-bottom: 12px; line-height: 1.4;">
                   // SPOKEN SUMMARY:<br>{esc(result["spoken_summary"])}
                 </div>
                 """
                 st.markdown(clean_html(spoken_summary_html), unsafe_allow_html=True)
                 play_audio(result["spoken_summary"], result.get("language", "en"), autoplay=False)
-            st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                PLACEHOLDERS["final_output"].markdown(clean_html(render_final_output_column(None)), unsafe_allow_html=True)
+        else:
+            PLACEHOLDERS["final_output"].markdown(clean_html(render_final_output_column(None)), unsafe_allow_html=True)
             
-        # Confidence Layer Progress Bar & System Audit Trail (Bottom row of Live Intake)
-        col_bot_left, col_bot_right = st.columns([5, 7])
-        with col_bot_left:
-            confidence_stack_html = """
-            <div class="ops-panel">
-              <div class="ops-panel-header">
-                <span class="ops-panel-title">AI Confidence Stack</span>
-              </div>
-              <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #808080; margin-bottom: 12px;">MODEL CERTAINTY BY COMPONENT:</div>
-              <div class="confidence-stack-row">
-                <span class="stack-label">Listener Agent</span>
-                <div class="stack-bar-bg"><div class="stack-bar-fill" style="width: 97%;"></div></div>
-                <span class="stack-val">97%</span>
-              </div>
-              <div class="confidence-stack-row">
-                <span class="stack-label">Classifier Agent</span>
-                <div class="stack-bar-bg"><div class="stack-bar-fill" style="width: 94%;"></div></div>
-                <span class="stack-val">94%</span>
-              </div>
-              <div class="confidence-stack-row">
-                <span class="stack-label">Matcher Agent</span>
-                <div class="stack-bar-bg"><div class="stack-bar-fill" style="width: 92%;"></div></div>
-                <span class="stack-val">92%</span>
-              </div>
-              <div class="confidence-stack-row">
-                <span class="stack-label">NGO Coordinator</span>
-                <div class="stack-bar-bg"><div class="stack-bar-fill" style="width: 89%;"></div></div>
-                <span class="stack-val">89%</span>
-              </div>
-              <div class="confidence-stack-row">
-                <span class="stack-label">Follow-Up Agent</span>
-                <div class="stack-bar-bg"><div class="stack-bar-fill" style="width: 95%;"></div></div>
-                <span class="stack-val">95%</span>
-              </div>
-            </div>
-            """
-            st.markdown(clean_html(confidence_stack_html), unsafe_allow_html=True)
-            
-        with col_bot_right:
-            logs = st.session_state.get("audit_log", ["[SYSTEM] System online. Awaiting intake..."])
-            logs_text = "\n".join(logs)
-            audit_trail_html = f"""
-            <div class="terminal-window">
-              <div class="terminal-header">
-                <span class="terminal-title">System Audit Trail</span>
-              </div>
-              <div class="terminal-body">{esc(logs_text)}<span class="blinking-cursor"></span></div>
-            </div>
-            """
-            st.markdown(clean_html(audit_trail_html), unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    # Bottom fullwidth row components
+    st.markdown(clean_html(render_confidence_stack_horizontal()), unsafe_allow_html=True)
+    st.markdown(clean_html(render_system_audit_trail_fullwidth()), unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # VIEW 2: Knowledge Ledger
@@ -1838,10 +2037,10 @@ elif st.session_state["workspace_view"] == "Knowledge Ledger":
               </div>
               <div class="transparency-panel">
                 <div class="transparency-title">Krishak Bandhu RAG Grounding</div>
-                <div class="transparency-item"><span class="transparency-check">✓</span> Farmer profile matched scheme requirements</div>
-                <div class="transparency-item"><span class="transparency-check">✓</span> West Bengal Resident validated</div>
-                <div class="transparency-item"><span class="transparency-check">✓</span> Crop Loss reported within criteria limit</div>
-                <div class="transparency-item"><span class="transparency-check">✓</span> Land Record Present verified</div>
+                <div class="transparency-item"><span class="transparency-check">{get_svg_icon("check", "#5EE6A8", 14)}</span> Farmer profile matched scheme requirements</div>
+                <div class="transparency-item"><span class="transparency-check">{get_svg_icon("check", "#5EE6A8", 14)}</span> West Bengal Resident validated</div>
+                <div class="transparency-item"><span class="transparency-check">{get_svg_icon("check", "#5EE6A8", 14)}</span> Crop Loss reported within criteria limit</div>
+                <div class="transparency-item"><span class="transparency-check">{get_svg_icon("check", "#5EE6A8", 14)}</span> Land Record Present verified</div>
                 <div class="eligibility-status">
                   <span>Eligibility Rating</span>
                   <span class="eligibility-value">HIGH</span>
@@ -1859,7 +2058,7 @@ elif st.session_state["workspace_view"] == "Knowledge Ledger":
                 <div class="tree-node status-success">Eligible</div>
               </div>
               
-              <div class="ops-panel" style="background-color: #1A1F1C; border-color: #2D332F; padding: 14px; margin-bottom: 0px;">
+              <div class="ops-panel" style="background-color: #1A1F1C; border-color: rgba(255,255,255,0.05); padding: 14px; margin-bottom: 0px;">
                 <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #808080; text-transform: uppercase; margin-bottom: 6px;">Grounding source reference</div>
                 <div class="mono-text" style="font-size: 0.72rem; color: #8FE6BC;">
                   FILE: schemes.json | LINE: 42 | OBJECT: Krishak Bandhu
@@ -1885,7 +2084,7 @@ elif st.session_state["workspace_view"] == "Case Management":
           <button class="sidebar-item"><span style="margin-right:8px;">{get_svg_icon('database', '#808080')}</span> Analytics</button>
           <button class="sidebar-item"><span style="margin-right:8px;">{get_svg_icon('shield', '#808080')}</span> Settings</button>
           <div style="height: 120px;"></div>
-          <div class="ops-panel" style="background-color: #1A1F1C; border-color: #2D332F; padding: 12px; margin-bottom: 0px;">
+          <div class="ops-panel" style="background-color: #1A1F1C; border-color: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 0px;">
             <div class="mono-text" style="font-size: 0.7rem; color: #808080;">OPERATOR PROFILE</div>
             <div style="font-size: 0.82rem; font-weight: bold; color: #F2F2F2; margin-top: 4px;">Operator (Admin)</div>
             <div class="mono-text" style="font-size: 0.65rem; color: #3DD68C; margin-top: 2px;">ROLE: ROOT_LEVEL</div>
@@ -1995,26 +2194,26 @@ elif st.session_state["workspace_view"] == "Case Management":
                     st.session_state["selected_case_id"] = c["case_id"]
                     st.rerun()
             with col_citizen:
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{c['caller_name']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{c['caller_name']}</div>", unsafe_allow_html=True)
             with col_cat:
                 category = c.get("classifier_output", "") or ""
                 cat_label = "Finance" if "finance" in category.lower() else ("Health" if "health" in category.lower() else "General")
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{cat_label}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{cat_label}</div>", unsafe_allow_html=True)
             with col_urg:
                 urg = c.get("urgency", "Medium").upper()
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{urg}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{urg}</div>", unsafe_allow_html=True)
             with col_ngo:
                 ngo = c.get("assigned_ngo") or "Krishak Sahayata"
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{ngo}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #F2F2F2; font-size: 0.82rem;'>{ngo}</div>", unsafe_allow_html=True)
             with col_status:
                 status = c.get("status", "Pending")
                 pill_class = "resolved" if status == "Resolved" else ("pending" if status == "Pending" else "escalated")
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 8px 0; text-align: left;'><span class='status-pill {pill_class}'>{status}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 8px 0; text-align: left;'><span class='status-pill {pill_class}'>{status}</span></div>", unsafe_allow_html=True)
             with col_upd:
                 updated = c.get("updated_time") or c.get("created_at", "")[11:16]
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #808080; font-size: 0.82rem;'>{updated}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #808080; font-size: 0.82rem;'>{updated}</div>", unsafe_allow_html=True)
             with col_conf:
-                st.markdown(f"<div style='border-bottom: 1px solid #2D332F; padding: 12px 0; color: #3DD68C; font-family: \"JetBrains Mono\", monospace; font-size: 0.82rem; font-weight: bold;'>94%</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 12px 0; color: #5EE6A8; font-family: \"JetBrains Mono\", monospace; font-size: 0.82rem; font-weight: bold;'>94%</div>", unsafe_allow_html=True)
                 
         st.markdown("</div>", unsafe_allow_html=True)
         
@@ -2042,7 +2241,7 @@ elif st.session_state["workspace_view"] == "Case Management":
                 CASE ID: <span style="color: #F2F2F2;">{esc(selected_case['case_id'])}</span>
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Citizen Profile</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Citizen Profile</div>
               <table class="profile-table" style="margin-bottom: 20px;">
                 <tr><td class="label">Age</td><td class="value">{esc(selected_case.get('age', '41'))}</td></tr>
                 <tr><td class="label">District</td><td class="value">{esc(selected_case.get('district', 'Kharagpur II'))}</td></tr>
@@ -2054,17 +2253,17 @@ elif st.session_state["workspace_view"] == "Case Management":
                 <tr><td class="label">Insurance Status</td><td class="value">{esc(selected_case.get('insurance_status', 'No Insurance'))}</td></tr>
               </table>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Case Summary</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Case Summary</div>
               <div style="font-size: 0.8rem; line-height: 1.4; color: #F2F2F2; margin-bottom: 20px; padding: 12px; background-color: #1A1F1C; border-radius: 4px;">
                 {esc(selected_case.get('raw_text', ''))}
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Scheme Matches</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Scheme Matches</div>
               <div style="margin-bottom: 20px;">
                 {get_scheme_matches_html(selected_case, show_benefit=True)}
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">NGO Assignment</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">NGO Assignment</div>
               <div class="ngo-card">
                 <div class="ngo-field">ORGANIZATION: <span>{esc(selected_case.get('assigned_ngo', 'Krishak Sahayata Kendra'))}</span></div>
                 <div class="ngo-field">COVERAGE AREA: <span>Paschim Medinipur District</span></div>
@@ -2075,18 +2274,18 @@ elif st.session_state["workspace_view"] == "Case Management":
                 <div class="ngo-field">STATUS: <span style="color: #3DD68C;">Escalated</span></div>
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Generated Message Draft</div>
-              <div class="mono-text" style="font-size: 0.72rem; color: #8FE6BC; padding: 12px; background-color: #0A0F0D; border: 1px solid #2D332F; white-space: pre-wrap; margin-bottom: 20px; border-radius: 4px; line-height: 1.4;">
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Generated Message Draft</div>
+              <div class="mono-text" style="font-size: 0.72rem; color: #8FE6BC; padding: 12px; background-color: #0A0F0D; border: 1px solid rgba(255, 255, 255, 0.05); white-space: pre-wrap; margin-bottom: 20px; border-radius: 4px; line-height: 1.4;">
                 {esc(selected_case.get('ngo_message_draft') or selected_case.get('ngo_output') or 'Citizen requires assistance with Krishak Bandhu application. Documents incomplete. Requesting NGO intervention.')}
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Follow-Up Panel</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Follow-Up Panel</div>
               <div class="countdown-panel">
                 <div class="countdown-title">NEXT FOLLOW-UP</div>
                 <div class="countdown-time">{get_followup_countdown(selected_case)}</div>
               </div>
               
-              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid #2D332F; padding-bottom: 6px; margin-bottom: 10px;">Case Timeline</div>
+              <div class="sahayak-heading" style="font-size: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; margin-bottom: 10px;">Case Timeline</div>
               <div class="timeline-vertical">
                 <div class="timeline-event">Call Received <span class="timeline-time">10:18 AM</span></div>
                 <div class="timeline-event">Case Classified <span class="timeline-time">10:18 AM</span></div>

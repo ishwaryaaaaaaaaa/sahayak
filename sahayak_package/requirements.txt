@@ -7,3 +7,4 @@ gTTS>=2.5.0
 portalocker>=2.7.0
 instructor>=1.15.0
 requests>=2.31.0
+pandas>=2.0.0
