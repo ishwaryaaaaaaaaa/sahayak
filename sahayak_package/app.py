@@ -1,17 +1,19 @@
 """
 Sahayak — Streamlit demo interface.
 
-Simulates the voice call as a text input (clearly labeled as such), runs the
-5-agent CrewAI pipeline, and displays each stage's output plus the final
-escalation + follow-up plan. Also includes a simple NGO dashboard view.
+Drives a turn-by-turn simulated call: the bot asks for name, location, and
+the caller's situation one question at a time (Intake Manager, see
+intake_manager.py), then runs the 5-agent CrewAI pipeline once intake is
+complete, speaks a summary back, and (if configured) actually emails the
+matched NGO. Also includes a simple NGO dashboard view.
 """
 import os
 import sys
-import time
 import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import intake_manager as im
 from tools_data import load_cases, load_schemes, load_ngos
 from crew_runner import run_case
 from voice_tools import transcribe_audio, synthesize_speech
@@ -75,11 +77,12 @@ st.markdown(
 st.markdown(
     """
     <div class="disclaimer-box">
-    <b>Prototype note:</b> This demo simulates a voice call as text input (a production
-    version would use real speech-to-text/text-to-speech in regional languages via
+    <b>Prototype note:</b> This demo simulates a phone call as a turn-by-turn voice
+    conversation in the browser (a production version would use real telephony via
     Twilio/Exotel). NGO contacts and some scheme details are illustrative for this
-    prototype. The 5-agent reasoning pipeline itself is fully functional and uses
-    live LLM calls via Groq.
+    prototype. The intake conversation, the 5-agent reasoning pipeline, the spoken
+    summary, and (when enabled) the NGO email are all fully functional with live
+    LLM calls.
     </div>
     """,
     unsafe_allow_html=True,
@@ -87,129 +90,132 @@ st.markdown(
 
 tab1, tab2, tab3 = st.tabs(["📞 Simulated Call", "🗂️ Case Log / NGO Dashboard", "ℹ️ How It Works"])
 
+
+def play_audio(text: str, language: str, autoplay: bool = True):
+    try:
+        audio_bytes, mime_type = synthesize_speech(text, language=language)
+        st.audio(audio_bytes, format=mime_type, autoplay=autoplay)
+    except Exception as e:
+        st.warning(f"Could not synthesize audio: {e}")
+
+
 # ---------------- TAB 1: Simulated Call ----------------
 with tab1:
-    st.subheader("Step 1 — Caller describes their situation")
-    st.caption(
-        "Record real voice input below (transcribed live via Groq Whisper), or "
-        "type the caller's situation directly."
-    )
+    if "intake_state" not in st.session_state:
+        st.subheader("Step 1 — Start the call")
+        st.caption(
+            "The bot will ask the caller's name, location, and situation one "
+            "question at a time, the way a real helpline call would go."
+        )
+        lang_choice = st.radio("Language / भाषा", ["English", "हिंदी (Hindi)"], horizontal=True)
+        language = "hi" if lang_choice.startswith("हिंदी") else "en"
+        caller_phone = st.text_input("Caller phone (optional, for the case log)", value="+91-98XXXXXXXX")
+        st.session_state["caller_phone"] = caller_phone
 
-    lang_choice = st.radio(
-        "Language / भाषा",
-        ["English", "हिंदी (Hindi)"],
-        horizontal=True,
-    )
-    language = "hi" if lang_choice.startswith("हिंदी") else "en"
+        if st.button("📞 Start Call", type="primary"):
+            st.session_state["intake_state"] = im.new_intake(language)
+            st.rerun()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        caller_name = st.text_input("Caller name (optional)", value="Ramesh")
-    with col2:
-        caller_phone = st.text_input("Caller phone (optional)", value="+91-98XXXXXXXX")
+    else:
+        state = st.session_state["intake_state"]
 
-    audio_value = st.audio_input(
-        "🎙️ Record the caller's situation (real voice input via Groq Whisper)"
-    )
+        st.subheader("Step 1 — Caller intake")
+        for turn in state.history:
+            role = "assistant" if turn["role"] == "bot" else "user"
+            with st.chat_message(role):
+                st.write(turn["text"])
 
-    example = (
-        "I am Ramesh, a farmer in a village near Kharagpur. My wife is seven months "
-        "pregnant and we don't have much money saved. I don't know what help we can "
-        "get for the delivery or what schemes we might be eligible for. I also lost "
-        "some crop this season due to rain."
-    )
+        if not state.complete:
+            play_audio(state.current_question, state.language)
 
-    if audio_value is not None:
-        with st.spinner("Transcribing with Groq Whisper..."):
-            try:
-                whisper_language = "hi" if language == "hi" else None
-                transcribed = transcribe_audio(audio_value.getvalue(), language=whisper_language)
-                st.session_state["transcribed_text"] = transcribed
-            except Exception as e:
-                st.error(f"Transcription failed: {e}")
-
-    raw_text = st.text_area(
-        "Caller's situation (transcript — edit if needed)",
-        value=st.session_state.get("transcribed_text", example),
-        height=120,
-    )
-
-    run_btn = st.button("▶️ Run Sahayak Agent Pipeline", type="primary")
-
-    HOLD_MESSAGE_HI = (
-        "नमस्ते! कृपया थोड़ा रुकें, मैं आपकी बात समझ रहा हूं और सही मदद ढूंढ रहा हूं। "
-        "कृपया लाइन पर बने रहें।"
-    )
-
-    if run_btn:
-        if not raw_text.strip():
-            st.warning("Please enter the caller's situation first.")
-        else:
-            if language == "hi":
-                # Spoken/shown the instant the call is submitted, before the
-                # 5-agent pipeline (10-20s) even starts, so the caller hears
-                # something in Hindi right away instead of dead air.
-                st.info(f"🤝 Sahayak: {HOLD_MESSAGE_HI}")
-                try:
-                    hold_audio = synthesize_speech(HOLD_MESSAGE_HI, language="hi")
-                    st.audio(hold_audio, format="audio/mp3", autoplay=True)
-                except Exception:
-                    pass  # hold message is a nice-to-have; never block the call on it
-
-            with st.spinner("Running 5-agent pipeline (Listener → Classifier → Scheme Matcher → NGO Coordinator → Follow-up)..."):
-                try:
-                    result = run_case(
-                        raw_text,
-                        caller_name=caller_name,
-                        caller_phone=caller_phone,
-                        language=language,
-                    )
-                    st.session_state["last_result"] = result
-                except Exception as e:
-                    st.error(f"Pipeline failed: {e}")
-                    result = None
-
-    if "last_result" in st.session_state:
-        result = st.session_state["last_result"]
-        st.success(f"Case {result['case_id']} processed successfully.")
-
-        def stage_box(label, english_text, hindi_text=None):
-            shown = hindi_text if hindi_text else english_text
-            st.markdown(
-                f'<div class="stage-box"><span class="stage-label">{label}</span><br>'
-                + shown.replace("\n", "<br>") + '</div>',
-                unsafe_allow_html=True,
+            audio_value = st.audio_input(
+                "🎙️ Record your reply", key=f"intake_audio_{state.turn_count}"
             )
-            if hindi_text:
-                with st.expander("Show English"):
-                    st.write(english_text)
+            typed_reply = st.text_input(
+                "Or type the reply instead", key=f"intake_text_{state.turn_count}"
+            )
 
-        stage_box(
-            "1. Listener — structured intake",
-            result["listener_output"],
-            result.get("listener_output_hi"),
-        )
-        stage_box("2. Classifier — domain &amp; urgency", result["classifier_output"])
-        stage_box(
-            "3. Knowledge Matcher — matched schemes",
-            result["matcher_output"],
-            result.get("matcher_output_hi"),
-        )
-        stage_box("4. NGO Coordinator — escalation", result["ngo_output"])
-        stage_box(
-            "5. Follow-up Plan",
-            result["followup_output"],
-            result.get("followup_output_hi"),
-        )
+            caller_reply = None
+            if audio_value is not None:
+                with st.spinner("Transcribing with Groq Whisper..."):
+                    try:
+                        whisper_language = "hi" if state.language == "hi" else None
+                        caller_reply = transcribe_audio(audio_value.getvalue(), language=whisper_language)
+                    except Exception as e:
+                        st.error(f"Transcription failed: {e}")
+            elif typed_reply:
+                caller_reply = typed_reply
 
-        followup_text = result.get("followup_output_hi") or result["followup_output"]
-        with st.spinner("Synthesizing follow-up message audio..."):
-            try:
-                audio_bytes = synthesize_speech(followup_text, language=result.get("language", "en"))
-                audio_format = "audio/mp3" if result.get("language") == "hi" else "audio/wav"
-                st.audio(audio_bytes, format=audio_format)
-            except Exception as e:
-                st.warning(f"Could not synthesize follow-up audio: {e}")
+            if caller_reply:
+                with st.spinner("Thinking..."):
+                    st.session_state["intake_state"] = im.next_turn(state, caller_reply)
+                st.rerun()
+
+        else:
+            st.success("Intake complete — running the 5-agent pipeline.")
+
+            if "last_result" not in st.session_state:
+                with st.spinner("Running 5-agent pipeline (Listener → Classifier → Scheme Matcher → NGO Coordinator → Follow-up)..."):
+                    try:
+                        result = run_case(
+                            im.build_case_brief(state),
+                            im.build_raw_narrative(state),
+                            caller_name=state.name or "Unknown Caller",
+                            caller_phone=st.session_state.get("caller_phone", "N/A"),
+                            language=state.language,
+                        )
+                        st.session_state["last_result"] = result
+                    except Exception as e:
+                        st.error(f"Pipeline failed: {e}")
+                        result = None
+
+            if "last_result" in st.session_state:
+                result = st.session_state["last_result"]
+                st.success(f"Case {result['case_id']} processed successfully.")
+
+                def stage_box(label, english_text, hindi_text=None):
+                    shown = hindi_text if hindi_text else english_text
+                    st.markdown(
+                        f'<div class="stage-box"><span class="stage-label">{label}</span><br>'
+                        + shown.replace("\n", "<br>") + '</div>',
+                        unsafe_allow_html=True,
+                    )
+                    if hindi_text:
+                        with st.expander("Show English"):
+                            st.write(english_text)
+
+                st.markdown("#### 🔊 Spoken summary to caller")
+                st.markdown(
+                    f'<div class="stage-box">{result["spoken_summary"]}</div>',
+                    unsafe_allow_html=True,
+                )
+                play_audio(result["spoken_summary"], result.get("language", "en"))
+
+                if result.get("email_sent"):
+                    st.success("NGO escalation email sent successfully.")
+                elif result.get("email_error"):
+                    st.info(f"NGO email not sent ({result['email_error']}).")
+
+                st.markdown("#### Pipeline stage detail")
+                stage_box(
+                    "1. Listener — structured intake",
+                    result["listener_output"],
+                    result.get("listener_output_hi"),
+                )
+                stage_box("2. Classifier — domain &amp; urgency", result["classifier_output"])
+                stage_box(
+                    "3. Knowledge Matcher — matched schemes",
+                    result["matcher_output"],
+                    result.get("matcher_output_hi"),
+                )
+                stage_box("4. NGO Coordinator — escalation", result["ngo_output"])
+                stage_box("5. Follow-up Plan (generated natively in caller's language)", result["followup_output"])
+                play_audio(result["followup_output"], result.get("language", "en"), autoplay=False)
+
+            if st.button("📞 Start New Call"):
+                for key in ("intake_state", "last_result", "caller_phone"):
+                    st.session_state.pop(key, None)
+                st.rerun()
 
 # ---------------- TAB 2: Case Log / NGO Dashboard ----------------
 with tab2:
@@ -224,8 +230,12 @@ with tab2:
             with st.expander(f"{c['case_id']} — {c['caller_name']} ({c['created_at'][:19]} UTC)"):
                 st.markdown(f"**Raw transcript:** {c['raw_text']}")
                 st.markdown(f"**Status:** `{c['status']}`")
+                email_status = "✅ sent" if c.get("email_sent") else f"draft only ({c.get('email_error', 'n/a')})"
+                st.markdown(f"**NGO email:** {email_status}")
                 st.markdown("**NGO escalation:**")
                 st.text(c["ngo_output"])
+                st.markdown("**Spoken summary:**")
+                st.text(c.get("spoken_summary", ""))
                 st.markdown("**Follow-up plan:**")
                 st.text(c["followup_output"])
 
@@ -234,16 +244,21 @@ with tab3:
     st.subheader("Architecture")
     st.markdown(
         """
-        **Five agents, each with one job, run sequentially via CrewAI:**
+        **An Intake Manager conversation loop runs in front of five agents, which then
+        run sequentially via CrewAI:**
 
-        1. **Listener** — turns the raw (simulated voice) transcript into a structured summary
+        0. **Intake Manager** — asks for name, location, and situation turn by turn,
+           extracting fields from however the caller answers (even out of order)
+        1. **Listener** — normalizes the completed intake into a structured summary
         2. **Classifier** — tags the case as health / finance / both, and sets urgency
         3. **Knowledge Matcher** — checks the case against a database of government schemes
         4. **NGO Coordinator** — picks the right local NGO and drafts an escalation message
         5. **Follow-up Coordinator** — generates a check-in message and a follow-up schedule
 
-        **LLM backend:** Groq (LLaMA 3.3 70B) — fast, low-cost inference suited to a
-        helpline-scale workload.
+        **LLM backend:** OpenRouter (LLaMA 3.3 70B) for all reasoning and the Intake
+        Manager's turn-by-turn extraction; Groq for speech-to-text (Whisper) and
+        English speech-to-speech (Orpheus); Sarvam AI for Hindi speech-to-speech
+        (falling back to gTTS if no Sarvam key is configured).
 
         **What's real vs. simulated in this prototype:**
         """
@@ -252,19 +267,21 @@ with tab3:
     with real_col:
         st.markdown("**✅ Real**")
         st.markdown(
+            "- Multi-turn intake conversation, driven by the LLM turn-by-turn\n"
             "- CrewAI multi-agent orchestration\n"
-            "- Live LLM reasoning at every stage\n"
+            "- Live LLM reasoning at every stage, natively in Hindi when selected\n"
             "- Scheme eligibility matching logic\n"
-            "- NGO escalation message generation\n"
+            "- Spoken summary generated and read back to the caller\n"
+            "- NGO escalation email (when SEND_REAL_EMAILS=true)\n"
             "- Case logging and dashboard"
         )
     with sim_col:
         st.markdown("**🔶 Simulated for demo**")
         st.markdown(
-            "- Voice input (text box stands in for transcribed speech)\n"
+            "- Phone telephony (browser mic stands in for a real phone call)\n"
             "- NGO contact directory (illustrative, fictional for Kharagpur district)\n"
-            "- Actual SMS/call dispatch (logged, not sent)\n"
-            "- Multi-day follow-up calling (single-shot in this demo)"
+            "- Multi-day follow-up calling (a follow-up plan is produced, not auto-dialed)\n"
+            "- Hindi speech defaults to gTTS if no SARVAM_API_KEY is configured"
         )
 
     st.subheader("Data this prototype runs on")
