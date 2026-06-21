@@ -55,7 +55,7 @@ Existing digital solutions (apps, websites, SMS campaigns) assume smartphone lit
 
 ## A Real Scenario
 
-> Ramesh is a farmer in a village near Kharagpur, West Bengal. His wife is seven months pregnant. The family has little savings, and this season's crop was damaged by unseasonal rain. Ramesh doesn't know that a maternity scheme could cover his wife's delivery costs, that a farmer welfare scheme could offset his crop loss, or that an NGO nearby exists specifically to help people in his situation file these claims. He has a basic phone. He does not read English, and would not know which government office to call even if he wanted to.
+> Bikash Mondal is a farmer in a village near Kharagpur, West Bengal. His wife is seven months pregnant. The family has little savings, and this season's crop was damaged by unseasonal rain. Ramesh doesn't know that a maternity scheme could cover his wife's delivery costs, that a farmer welfare scheme could offset his crop loss, or that an NGO nearby exists specifically to help people in his situation file these claims. He has a basic phone. He does not read English, and would not know which government office to call even if he wanted to.
 
 This is the person Sahayak is built for. He calls one number. He talks naturally, the way he'd talk to a person — in Hindi, in his own words, answering questions one at a time. The system listens, understands, and figures out the rest.
 
