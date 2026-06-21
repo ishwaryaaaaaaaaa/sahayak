@@ -37,11 +37,3 @@ GROQ_TTS_VOICE = "troy"
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 SARVAM_TTS_MODEL = "bulbul:v2"
 SARVAM_TTS_SPEAKER = "anushka"
-
-# Real NGO email escalation (see email_tools.py). Defaults to draft-only so
-# the pipeline never sends email unless explicitly turned on.
-SEND_REAL_EMAILS = os.getenv("SEND_REAL_EMAILS", "false").strip().lower() == "true"
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "")
