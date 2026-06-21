@@ -14,11 +14,13 @@ import sys
 import time
 import html as html_lib
 
+import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import intake_manager as im
+import config.settings as cfg
 from tools_data import load_cases, load_schemes, load_ngos
 from crew_runner import run_case
 from voice_tools import transcribe_audio, synthesize_speech
@@ -340,6 +342,31 @@ st.markdown(
         text-shadow: 0 0 6px rgba(31,184,124,0.4);
     }}
 
+    /* ---------- Dashboard ---------- */
+    .dash-sidebar {{
+        background: linear-gradient(160deg, {OBSIDIAN_2} 0%, {OBSIDIAN} 100%);
+        border-radius: 14px; padding: 14px 10px; min-height: 480px;
+    }}
+    .dash-nav-title {{ color: {GOLD}; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 10px 10px 10px; }}
+    .kpi-card {{
+        background: {CREAM}; border: 1px solid #E8E0CC; border-radius: 12px;
+        padding: 14px 16px; text-align: left;
+    }}
+    .kpi-value {{ font-size: 1.7rem; font-weight: 700; color: {FOREST}; font-family: 'Playfair Display', serif; }}
+    .kpi-label {{ font-size: 0.74rem; color: #8B8268; margin-top: 2px; }}
+    .kpi-delta {{ font-size: 0.7rem; margin-top: 4px; font-weight: 600; }}
+    .kpi-delta.up {{ color: {SAGE}; }}
+    .kpi-delta.down {{ color: {TERRACOTTA}; }}
+    .dash-chart-card {{
+        background: {CREAM}; border: 1px solid #E8E0CC; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px;
+    }}
+    .dash-chart-title {{ font-weight: 700; color: {FOREST}; font-size: 0.95rem; margin-bottom: 10px; }}
+    .config-row {{
+        display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #ECE6D4; font-size: 0.84rem;
+    }}
+    .config-row span:first-child {{ color: #6B6650; }}
+    .config-row span:last-child {{ color: {FOREST}; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }}
+
     /* secondary (default) buttons -> forest green action buttons; primary -> terracotta urgent accent (End Call, Start Call) */
     button[kind="secondary"] {{
         background: linear-gradient(160deg, {FOREST} 0%, #16281F 100%) !important;
@@ -423,6 +450,48 @@ def highlight_keywords(text: str, keywords: list) -> str:
             flags=re.IGNORECASE,
         )
     return escaped
+
+
+def compute_dashboard_stats(cases: list, schemes: list, ngos: list) -> dict:
+    """Real stats derived from the actual case log - no invented numbers or
+    fake day-over-day deltas, since we don't track historical baselines."""
+    total_cases = len(cases)
+    hindi_calls = sum(1 for c in cases if c.get("language") == "hi")
+    english_calls = total_cases - hindi_calls
+
+    scheme_counts = {s["name"]: 0 for s in schemes}
+    for c in cases:
+        text = c.get("matcher_output", "") or ""
+        for s in schemes:
+            if s["name"] in text or s["id"] in text:
+                scheme_counts[s["name"]] += 1
+    top_schemes = [(n, ct) for n, ct in scheme_counts.items() if ct > 0]
+    top_schemes.sort(key=lambda x: x[1], reverse=True)
+
+    ngo_counts = {n["name"]: 0 for n in ngos}
+    for c in cases:
+        text = c.get("ngo_output", "") or ""
+        for n in ngos:
+            if n["name"] in text or n["id"] in text:
+                ngo_counts[n["name"]] += 1
+    ngos_engaged = sum(1 for v in ngo_counts.values() if v > 0)
+
+    calls_by_date = {}
+    for c in cases:
+        date_str = (c.get("created_at") or "")[:10]
+        if date_str:
+            calls_by_date[date_str] = calls_by_date.get(date_str, 0) + 1
+
+    return {
+        "total_cases": total_cases,
+        "hindi_calls": hindi_calls,
+        "english_calls": english_calls,
+        "top_schemes": top_schemes[:5],
+        "scheme_counts": scheme_counts,
+        "ngo_counts": ngo_counts,
+        "ngos_engaged": ngos_engaged,
+        "calls_by_date": calls_by_date,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -861,6 +930,21 @@ def update_pipeline_strip(stage_index: int, output=None):
     audit_trail_placeholder.markdown(render_audit_trail_html(audit_log), unsafe_allow_html=True)
 
 
+def render_kpi_card(label: str, value):
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+          <div class="kpi-value mono">{esc(str(value))}</div>
+          <div class="kpi-label">{esc(label)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+DASH_NAV_ITEMS = ["Dashboard", "NGOs", "Schemes", "Settings"]
+
+
 with tab1:
     if "intake_state" not in st.session_state:
         st.subheader("Start the call")
@@ -1037,66 +1121,165 @@ with tab2:
                 st.text(c["followup_output"])
 
 # ---------------------------------------------------------------------------
-# TAB 3: How It Works
+# TAB 3: Dashboard
 # ---------------------------------------------------------------------------
 with tab3:
-    st.subheader("Architecture")
-    st.markdown(
-        """
-        **An Intake Manager conversation loop runs in front of five agents, which then
-        run sequentially via CrewAI:**
-
-        0. **Intake Manager** — asks for name, location, and situation turn by turn,
-           extracting fields from however the caller answers (even out of order)
-        1. **Listener** — normalizes the completed intake into a structured summary
-        2. **Classifier** — tags the case as health / finance / both, and sets urgency
-        3. **Knowledge Matcher** — checks the case against a database of government schemes
-        4. **NGO Coordinator** — picks the right local NGO and drafts an escalation message
-        5. **Follow-up Coordinator** — generates a check-in message and a follow-up schedule
-
-        **LLM backend:** OpenRouter (LLaMA 3.3 70B) for all reasoning and the Intake
-        Manager's turn-by-turn extraction; Groq for speech-to-text (Whisper) and
-        English speech-to-speech (Orpheus); Sarvam AI for Hindi speech-to-speech
-        (falling back to gTTS if no Sarvam key is configured).
-
-        **What's real vs. simulated in this prototype:**
-        """
-    )
-    real_col, sim_col = st.columns(2)
-    with real_col:
-        st.markdown("**✅ Real**")
-        st.markdown(
-            "- Multi-turn intake conversation, driven by the LLM turn-by-turn\n"
-            "- CrewAI multi-agent orchestration\n"
-            "- Live LLM reasoning at every stage, natively in Hindi when selected\n"
-            "- Scheme eligibility matching logic\n"
-            "- Spoken summary generated and read back to the caller\n"
-            "- Case logging and dashboard"
-        )
-    with sim_col:
-        st.markdown("**🔶 Simulated for demo**")
-        st.markdown(
-            "- Phone telephony (browser mic stands in for a real phone call; a "
-            "production version would connect via Twilio)\n"
-            "- NGO contact/notification (the escalation message is generated and shown "
-            "here; production would dispatch it over Twilio SMS/voice rather than email)\n"
-            "- NGO contact directory (illustrative, fictional for Kharagpur district)\n"
-            "- Multi-day follow-up calling (a follow-up plan is produced, not auto-dialed)\n"
-            "- Hindi speech defaults to gTTS if no SARVAM_API_KEY is configured"
-        )
-
-    st.subheader("Data this prototype runs on")
+    cases = load_cases()
     schemes = load_schemes()
     ngos = load_ngos()
-    st.markdown(f"**{len(schemes)} government schemes** (health + finance, real central schemes + WB state schemes)")
-    st.dataframe(
-        [{"ID": s["id"], "Name": s["name"], "Category": s["category"]} for s in schemes],
-        use_container_width=True,
-        hide_index=True,
-    )
-    st.markdown(f"**{len(ngos)} NGOs** (fictional, illustrative for Kharagpur district demo)")
-    st.dataframe(
-        [{"ID": n["id"], "Name": n["name"], "Focus": ", ".join(n["focus"])} for n in ngos],
-        use_container_width=True,
-        hide_index=True,
-    )
+    stats = compute_dashboard_stats(cases, schemes, ngos)
+
+    nav_col, main_col = st.columns([0.18, 0.82])
+
+    with nav_col:
+        st.markdown('<div class="dash-sidebar">', unsafe_allow_html=True)
+        st.markdown('<div class="dash-nav-title sahayak-serif">Sahayak</div>', unsafe_allow_html=True)
+        active_view = st.session_state.get("dash_view", "Dashboard")
+        for item in DASH_NAV_ITEMS:
+            label = f"📍 {item}" if item == active_view else item
+            if st.button(label, key=f"dashnav_{item}", use_container_width=True):
+                st.session_state["dash_view"] = item
+                active_view = item
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with main_col:
+        if active_view == "Dashboard":
+            st.markdown(
+                f'<div class="sahayak-serif" style="font-size:1.4rem; font-weight:700; color:{FOREST};">Dashboard Overview</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Real-time overview computed from the actual case log (data/cases.json) - "
+                "not synthetic numbers. It will look sparse until more calls are run."
+            )
+
+            kpi_cols = st.columns(4)
+            with kpi_cols[0]:
+                render_kpi_card("Total Calls Logged", stats["total_cases"])
+            with kpi_cols[1]:
+                render_kpi_card("Hindi Calls", stats["hindi_calls"])
+            with kpi_cols[2]:
+                render_kpi_card("English Calls", stats["english_calls"])
+            with kpi_cols[3]:
+                render_kpi_card("NGOs Engaged", f'{stats["ngos_engaged"]} / {len(ngos)}')
+
+            chart_col1, chart_col2 = st.columns(2)
+            with chart_col1:
+                st.markdown(
+                    '<div class="dash-chart-card"><div class="dash-chart-title">Calls Over Time</div>',
+                    unsafe_allow_html=True,
+                )
+                if stats["calls_by_date"]:
+                    df = pd.DataFrame(sorted(stats["calls_by_date"].items()), columns=["Date", "Calls"]).set_index("Date")
+                    st.line_chart(df, height=220)
+                else:
+                    st.caption("No calls logged yet - run a simulated call in the Live Call tab.")
+                st.markdown("</div>", unsafe_allow_html=True)
+            with chart_col2:
+                st.markdown(
+                    '<div class="dash-chart-card"><div class="dash-chart-title">Top Schemes Matched</div>',
+                    unsafe_allow_html=True,
+                )
+                if stats["top_schemes"]:
+                    df = pd.DataFrame(stats["top_schemes"], columns=["Scheme", "Matches"]).set_index("Scheme")
+                    st.bar_chart(df, height=220)
+                else:
+                    st.caption("No scheme matches logged yet.")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with st.expander("ℹ️ How the pipeline works"):
+                st.markdown(
+                    """
+                    **An Intake Manager conversation loop runs in front of five agents, which then
+                    run sequentially via CrewAI:**
+
+                    0. **Intake Manager** — asks for name, location, and situation turn by turn,
+                       extracting fields from however the caller answers (even out of order)
+                    1. **Listener** — normalizes the completed intake into a structured summary
+                    2. **Classifier** — tags the case as health / finance / both, and sets urgency
+                    3. **Knowledge Matcher** — checks the case against a database of government schemes
+                    4. **NGO Coordinator** — picks the right local NGO and drafts an escalation message
+                    5. **Follow-up Coordinator** — generates a check-in message and a follow-up schedule
+
+                    **What's real vs. simulated:** the intake conversation, the 5-agent reasoning,
+                    and the spoken summary are all live LLM calls. Phone telephony (browser mic
+                    stands in for a real call; production would connect via Twilio) and the NGO
+                    directory (illustrative, fictional for the Kharagpur district demo) are
+                    simulated for this prototype.
+                    """
+                )
+
+        elif active_view == "NGOs":
+            st.markdown(
+                f'<div class="sahayak-serif" style="font-size:1.4rem; font-weight:700; color:{FOREST};">NGO Directory</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(f"{len(ngos)} NGOs - illustrative directory for the Kharagpur district demo.")
+            st.dataframe(
+                [
+                    {
+                        "Name": n["name"],
+                        "Area": n["area"],
+                        "Focus": ", ".join(n["focus"]),
+                        "Times Engaged": stats["ngo_counts"].get(n["name"], 0),
+                        "Phone": n["phone"],
+                    }
+                    for n in ngos
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        elif active_view == "Schemes":
+            st.markdown(
+                f'<div class="sahayak-serif" style="font-size:1.4rem; font-weight:700; color:{FOREST};">Scheme Catalog</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(f"{len(schemes)} government schemes - real central + West Bengal state schemes.")
+            st.dataframe(
+                [
+                    {
+                        "Name": s["name"],
+                        "Category": s["category"].title(),
+                        "Eligibility": "; ".join(s["eligibility"][:2]),
+                        "Times Matched": stats["scheme_counts"].get(s["name"], 0),
+                    }
+                    for s in schemes
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        elif active_view == "Settings":
+            st.markdown(
+                f'<div class="sahayak-serif" style="font-size:1.4rem; font-weight:700; color:{FOREST};">Configuration</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Actual configured values from config/settings.py and the environment - "
+                "read-only, since there's no settings backend to persist edits yet."
+            )
+            cfg_col1, cfg_col2 = st.columns(2)
+            with cfg_col1:
+                voice_rows = [
+                    ("Whisper STT model", cfg.GROQ_WHISPER_MODEL),
+                    ("English TTS", f"{cfg.GROQ_TTS_MODEL} ({cfg.GROQ_TTS_VOICE})"),
+                    (
+                        "Hindi TTS",
+                        f"Sarvam {cfg.SARVAM_TTS_MODEL} ({cfg.SARVAM_TTS_SPEAKER})"
+                        if cfg.SARVAM_API_KEY
+                        else "gTTS fallback (no Sarvam key set)",
+                    ),
+                ]
+                rows_html = "".join(f'<div class="config-row"><span>{esc(k)}</span><span>{esc(v)}</span></div>' for k, v in voice_rows)
+                st.markdown(f'<div class="dash-chart-card"><div class="dash-chart-title">Voice</div>{rows_html}</div>', unsafe_allow_html=True)
+            with cfg_col2:
+                system_rows = [
+                    ("LLM model", cfg.OPENROUTER_MODEL),
+                    ("Max requests/min", str(cfg.MAX_RPM)),
+                    ("Schemes loaded", str(len(schemes))),
+                    ("NGOs loaded", str(len(ngos))),
+                ]
+                rows_html = "".join(f'<div class="config-row"><span>{esc(k)}</span><span>{esc(v)}</span></div>' for k, v in system_rows)
+                st.markdown(f'<div class="dash-chart-card"><div class="dash-chart-title">System</div>{rows_html}</div>', unsafe_allow_html=True)
