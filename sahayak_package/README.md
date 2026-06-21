@@ -1,7 +1,7 @@
 ---
 title: Sahayak
 emoji: 🤝
-colorFrom: orange
+colorFrom: yellow
 colorTo: green
 sdk: streamlit
 sdk_version: "1.58.0"
@@ -9,18 +9,24 @@ app_file: app.py
 pinned: false
 ---
 
-# Sahayak 🤝
-### A multi-agent helpline that connects rural callers to government health & finance schemes — and to the NGOs who can actually help them apply.
+# Sahayak 🤝 সহায়ক
+
+### A voice-first, multi-agent helpline that connects rural Indian callers to government health & finance schemes — and to the NGOs who can help them apply.
 
 > Built for the IIT Kharagpur Agentic AI Hackathon — Architecture & Implementation Submission
 
----
+## 🔗 Live Demo
 
-![CrewAI](https://img.shields.io/badge/CrewAI-multi--agent-FF5A5F)
-![Groq](https://img.shields.io/badge/Groq-LLaMA%203.3%2070B-000000)
+**[https://huggingface.co/spaces/Ishwaryashriiiiiiiii/Sahayak](https://huggingface.co/spaces/Ishwaryashriiiiiiiii/Sahayak)**
+
+Open the link, click **Start Call**, and talk (or type) as a caller describing a problem — the bot will ask follow-up questions, run the full agent pipeline, and speak a summary back.
+
+![CrewAI](https://img.shields.io/badge/CrewAI-multi--agent-1E3A2F)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-LLaMA%203.3%2070B-1FB87C)
+![Groq](https://img.shields.io/badge/Groq-Whisper%20%2B%20Orpheus-000000)
+![Sarvam](https://img.shields.io/badge/Sarvam%20AI-Hindi%20TTS-C2562D)
 ![Streamlit](https://img.shields.io/badge/Streamlit-demo%20UI-FF4B4B?logo=streamlit&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
 
@@ -29,15 +35,18 @@ pinned: false
 1. [The Problem](#the-problem)
 2. [A Real Scenario](#a-real-scenario)
 3. [Why This Is an Agent Problem, Not a Chatbot Problem](#why-this-is-an-agent-problem-not-a-chatbot-problem)
-4. [Architecture](#architecture)
-5. [The Five Agents](#the-five-agents)
-6. [Tech Stack](#tech-stack)
-7. [Project Structure](#project-structure)
-8. [Setup](#setup)
-9. [Running the Demo](#running-the-demo)
-10. [What's Real vs. Simulated in This Prototype](#whats-real-vs-simulated-in-this-prototype)
-11. [Roadmap to Production](#roadmap-to-production)
-12. [Authors](#authors)
+4. [How a Call Actually Works](#how-a-call-actually-works)
+5. [Architecture](#architecture)
+6. [The Dashboard](#the-dashboard)
+7. [Tech Stack](#tech-stack)
+8. [Project Structure](#project-structure)
+9. [Setup](#setup)
+10. [Running Locally](#running-locally)
+11. [Deploying to Hugging Face Spaces](#deploying-to-hugging-face-spaces)
+12. [What's Real vs. Simulated](#whats-real-vs-simulated)
+13. [Known Limitations](#known-limitations)
+14. [Roadmap to Production](#roadmap-to-production)
+15. [Author](#author)
 
 ---
 
@@ -55,84 +64,102 @@ Existing digital solutions (apps, websites, SMS campaigns) assume smartphone lit
 
 ## A Real Scenario
 
-> Ramesh is a farmer in a village near Kharagpur, West Bengal. His wife is seven months pregnant. The family has little savings, and this season's crop was damaged by unseasonal rain. Ramesh doesn't know that a maternity scheme could cover his wife's delivery costs, that a farmer welfare scheme could offset his crop loss, or that an NGO twenty kilometers away exists specifically to help people in his situation file these claims. He has a basic phone. He does not have a smartphone, does not read English, and would not know which government office to call even if he wanted to.
+> Ramesh is a farmer in a village near Kharagpur, West Bengal. His wife is seven months pregnant. The family has little savings, and this season's crop was damaged by unseasonal rain. Ramesh doesn't know that a maternity scheme could cover his wife's delivery costs, that a farmer welfare scheme could offset his crop loss, or that an NGO nearby exists specifically to help people in his situation file these claims. He has a basic phone. He does not read English, and would not know which government office to call even if he wanted to.
 
-This is the person Sahayak is built for. He calls one number. He explains his situation in his own words. The system figures out the rest.
+This is the person Sahayak is built for. He calls one number. He talks naturally, the way he'd talk to a person — in Hindi, in his own words, answering questions one at a time. The system listens, understands, and figures out the rest.
 
 ## Why This Is an Agent Problem, Not a Chatbot Problem
 
 A chatbot answers what you ask it and stops. That's insufficient here for two reasons:
 
-1. **The reasoning is multi-step and domain-spanning.** A single sentence ("my wife is pregnant and we lost a crop") needs to be parsed, classified across health *and* finance, matched against eligibility rules in a scheme database, routed to the right local organization, and turned into a specific, actionable next step — five distinct kinds of reasoning, each better handled by a specialist than by one prompt trying to do everything.
-
-2. **The system has to act, not just respond.** It doesn't just tell Ramesh "some schemes might help" — it identifies *which* schemes, drafts an actual escalation to a real NGO with the context that NGO needs to act, and sets up a follow-up so Ramesh isn't forgotten after one call. That's initiative and persistence, not just Q&A.
+1. **The reasoning is multi-step and domain-spanning.** A rambling description ("my wife is pregnant and we lost a crop") needs to be structured, classified across health *and* finance, matched against eligibility rules in a scheme database, routed to the right local organization, and turned into a specific, actionable next step — five distinct kinds of reasoning, each better handled by a specialist than by one prompt trying to do everything.
+2. **The system has to act, not just respond.** It doesn't just tell Ramesh "some schemes might help" — it identifies *which* schemes, drafts an escalation message for a real NGO, and sets up a follow-up so Ramesh isn't forgotten after one call.
 
 That's what makes this a **multi-agent system** rather than a single LLM call with a system prompt.
+
+## How a Call Actually Works
+
+A call is a guided, turn-by-turn conversation — not a single recording dumped into a pipeline:
+
+1. **Greeting** — the bot introduces itself and invites the caller to describe what's going on, in their own language (English or Hindi).
+2. **Intake Manager** (see `intake_manager.py`) — a lightweight LLM-driven loop (deliberately *not* a CrewAI agent — see the architecture note below) asks for name, location, and the caller's situation one turn at a time, extracting whatever fields are present in each reply even if the caller answers out of order, volunteers extra detail, or declines to elaborate further. It asks targeted follow-up questions (age, family status, occupation, etc.) only when something eligibility-relevant is still missing, and stops once it has enough to proceed (hard-capped at 6 turns as a safety net).
+3. Once intake is complete, the structured case is handed to the **5-agent CrewAI pipeline** (below), which runs once per call.
+4. The pipeline's output is turned into a **spoken summary** — generated natively in the caller's language (not translated after the fact) — and read back to the caller via text-to-speech.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    A[📞 Caller describes situation<br/>simulated voice transcript] --> B[Agent 1: Listener]
+    A[📞 Caller speaks] --> IM[Intake Manager<br/>turn-by-turn conversation loop]
+    IM --> |structured case brief| B[Agent 1: Listener]
     B --> |structured case summary| C[Agent 2: Classifier]
     C --> |domain + urgency| D[Agent 3: Knowledge Matcher]
     D --> |matched schemes + reasoning| E[Agent 4: NGO Coordinator]
     E --> |escalation message + chosen NGO| F[Agent 5: Follow-up Coordinator]
-    F --> |check-in message + schedule| G[📋 Case Record]
-    G --> H[(Case Log /<br/>NGO Dashboard)]
+    F --> SS[Spoken Summary<br/>generated natively in caller's language]
+    SS --> G[📋 Case Record]
+    G --> H[(Case Log / Dashboard)]
     D -.reads.-> SCH[(schemes.json<br/>govt scheme database)]
     E -.reads.-> NGO[(ngos.json<br/>NGO directory)]
-
-    style A fill:#FAF7F2,stroke:#B5582E
-    style G fill:#FAF7F2,stroke:#1E3A34
-    style H fill:#FFF4E5,stroke:#D98C2B
 ```
 
-All five agents run **sequentially** via CrewAI's `Process.sequential`, with each task's output passed as context into the next — so the Classifier sees the Listener's structured summary, the Knowledge Matcher sees both prior outputs, and so on. No agent re-derives what a previous agent already established.
-
-## The Five Agents
+All five agents run **sequentially** via CrewAI's `Process.sequential`, with each task's output passed as context into the next. The Knowledge Matcher and NGO Coordinator tasks use `output_pydantic` for structured output (`MatcherOutput`, `NGOOutput` in `tasks/definitions.py`), so the UI reads real scheme/NGO fields directly instead of regex-scraping prose.
 
 | # | Agent | Job | Reads | Produces |
 |---|-------|-----|-------|----------|
-| 1 | **Listener** | Structures the raw, possibly rambling transcript into a clean case summary | Raw transcript | `person_situation`, `stated_need`, `mentioned_details` |
+| — | **Intake Manager** | Asks for name/location/situation turn by turn, extracting fields from however the caller answers | Conversation so far | Structured case brief |
+| 1 | **Listener** | Normalizes the completed intake into a clean case summary | Case brief | `person_situation`, `stated_need`, `mentioned_details` |
 | 2 | **Classifier** | Tags the case by domain and urgency | Listener output | `domain` (health/finance/both), `urgency`, `urgency_reason` |
-| 3 | **Knowledge Matcher** | Matches the case against the scheme database with eligibility reasoning | Listener + Classifier output, `schemes.json` | Up to 3 matched schemes with `why_match` and `documents_needed` |
-| 4 | **NGO Coordinator** | Picks the right NGO and drafts an escalation message | All prior outputs, `ngos.json` | Chosen NGO + a ready-to-send escalation message |
-| 5 | **Follow-up Coordinator** | Plans the check-in so the case doesn't go cold | All prior outputs | A warm follow-up message + recommended follow-up timing |
+| 3 | **Knowledge Matcher** | Matches the case against the scheme database with eligibility reasoning | Listener + Classifier output, `schemes.json` | Up to 3 matched schemes, each with `why_match`, `documents_needed`, `confidence_score`, `reasoning_path` |
+| 4 | **NGO Coordinator** | Picks the right NGO and drafts an escalation message | All prior outputs, `ngos.json` | Chosen NGO + escalation message |
+| 5 | **Follow-up Coordinator** | Plans the check-in so the case doesn't go cold | All prior outputs | Follow-up message (native language) + recommended timing |
 
-Each agent has **one narrow responsibility** deliberately — this is what makes the system debuggable and lets each agent's prompt stay focused instead of trying to do five jobs in one pass.
+**Why the Intake Manager isn't a CrewAI agent:** CrewAI's `Crew`/`Task` abstraction is built for one-shot sequential pipelines, not a stateful, turn-by-turn loop that needs to persist partial state across Streamlit reruns and decide what to ask next. Re-invoking a full `Crew.kickoff()` every conversational turn just to ask one question would be slow and architecturally awkward. Instead, `intake_manager.py` makes one direct `llm.call()` per turn, reusing the same LLM object the 5-agent pipeline uses — and only hands off to the existing Listener task once intake is complete. This keeps the existing 4 downstream tasks completely unchanged.
+
+## The Dashboard
+
+The third tab ("How It Works") is a real operator dashboard, not a static explainer page — a sidebar switches between four views, all computed from the actual case log (`data/cases.json`), never fabricated:
+
+- **Dashboard** — KPI cards (total calls, language split, NGOs engaged) plus a real "Calls Over Time" line chart and "Top Schemes Matched" bar chart
+- **NGOs** — the full NGO directory with a real "times engaged" count per NGO
+- **Schemes** — the full scheme catalog with a real "times matched" count per scheme
+- **Settings** — the actual configured values from `config/settings.py` and the environment (STT/TTS models, LLM model, rate limits) — read-only, since there's no settings backend to persist edits to
 
 ## Tech Stack
 
 | Layer | Technology | Why |
 |---|---|---|
 | Agent orchestration | **CrewAI** | Sequential multi-agent pipelines with built-in context passing between tasks |
-| LLM routing | **LiteLLM** | CrewAI's provider abstraction layer for non-OpenAI models |
-| Speech-to-text | **Groq Whisper (`whisper-large-v3-turbo`)** | Same multilingual model for English and Hindi input, just a different language hint |
-| Text-to-speech (English) | **Groq Orpheus TTS** (`canopylabs/orpheus-v1-english`) | Fast, low-latency English voice synthesis |
-| Text-to-speech (Hindi) | **gTTS** | Free fallback since Groq has no Hindi voice yet |
-| Translation | Same LLM used by the agents, via a plain prompt (`crew_runner.translate_text`) | No extra translation dependency |
-| Demo interface | **Streamlit** | Fast to build, clean tabbed UI with a real mic input widget (`st.audio_input`) |
-| Data layer | **JSON files** (`schemes.json`, `ngos.json`, `cases.json`) | Zero-setup, transparent, easy to swap for a real DB post-hackathon |
+| LLM reasoning | **OpenRouter → Llama 3.3 70B Instruct** | One model handles all 5 agents plus the Intake Manager's turn-by-turn extraction |
+| Structured output | **Pydantic + CrewAI `output_pydantic`** + **instructor** | Reliable structured fields instead of regex-scraping LLM prose |
+| Speech-to-text | **Groq Whisper** (`whisper-large-v3-turbo`) | Same multilingual model for English and Hindi input, just a different language hint |
+| Text-to-speech (English) | **Groq Orpheus TTS** | Fast, low-latency English voice synthesis |
+| Text-to-speech (Hindi) | **Sarvam AI** (`bulbul:v2`) | Purpose-built for Indian languages; falls back to **gTTS** automatically if no Sarvam key is configured or the call fails |
+| Demo interface | **Streamlit** | Tabbed UI with a real mic input widget (`st.audio_input`), styled as a live phone call rather than a generic dashboard |
+| Data layer | **JSON files** (`schemes.json`, `ngos.json`, `cases.json`) | Zero-setup, transparent, easy to swap for a real DB later |
 | Config | **python-dotenv** | Keeps API keys out of source control |
 
 ## Project Structure
 
 ```
-sahayak/
-├── app.py                      # Streamlit demo UI (3 tabs: call simulator, case log, architecture)
-├── crew_runner.py              # Orchestrates the 5-agent CrewAI pipeline end-to-end + Hindi translation step
-├── voice_tools.py               # Groq Whisper transcription + Groq Orpheus/gTTS speech synthesis
-├── tools_data.py                # Loads/saves schemes, NGOs, and case records (JSON-backed)
+sahayak_package/
+├── app.py                   # Streamlit UI: live call screen, case log, dashboard
+├── intake_manager.py        # Turn-by-turn conversation manager (not a CrewAI agent - see Architecture)
+├── crew_runner.py           # Orchestrates the 5-agent CrewAI pipeline + spoken summary generation
+├── voice_tools.py           # Groq Whisper transcription + Groq Orpheus / Sarvam / gTTS speech synthesis
+├── tools_data.py            # Loads/saves schemes, NGOs, and case records (JSON-backed)
 ├── agents/
-│   └── definitions.py          # All 5 CrewAI Agent definitions (role, goal, backstory, LLM)
+│   └── definitions.py       # All 5 CrewAI Agent definitions + the shared LLM object
 ├── tasks/
-│   └── definitions.py          # All 5 CrewAI Task definitions (description, expected_output, context)
+│   └── definitions.py       # All 5 CrewAI Task definitions, incl. Pydantic output models
 ├── config/
-│   └── settings.py             # Absolute paths + Groq LLM config (env-driven)
+│   └── settings.py          # Absolute paths + all API/model configuration (env-driven)
 ├── data/
-│   ├── schemes.json            # 12 government health & finance schemes (real central + WB state schemes)
-│   └── ngos.json                # 5 illustrative NGOs for the Kharagpur district demo
+│   ├── schemes.json         # 12 government health & finance schemes (real central + WB state schemes)
+│   ├── ngos.json             # 5 illustrative NGOs for the Kharagpur district demo
+│   └── cases.json            # Runtime-generated case log (gitignored)
+├── assets/
+│   └── hold_tune.wav         # Short instrumental hold chime (synthesized, royalty-free)
 ├── requirements.txt
 ├── .env.example
 └── .gitignore
@@ -143,7 +170,7 @@ sahayak/
 ```bash
 # 1. Clone
 git clone <your-repo-url>
-cd sahayak
+cd sahayak_package
 
 # 2. Virtual environment
 python -m venv venv
@@ -152,56 +179,77 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure your Groq API key
+# 4. Configure your API keys
 cp .env.example .env
-# then edit .env and paste your key from console.groq.com
+# then edit .env and fill in:
+#   GROQ_API_KEY        - https://console.groq.com/keys (Whisper STT + English TTS)
+#   OPENROUTER_API_KEY  - https://openrouter.ai/keys (all agent/LLM reasoning)
+#   SARVAM_API_KEY      - https://www.sarvam.ai (Hindi TTS; optional - falls back to gTTS if blank)
 ```
 
-## Running the Demo
+## Running Locally
 
-**Streamlit UI (recommended for judging/demo):**
 ```bash
 streamlit run app.py
 ```
-This opens a browser tab with three sections: a call simulator (type what the caller says, run the full 5-agent pipeline, see every stage's output), a case log / NGO dashboard, and an architecture explainer.
 
-**Command-line (single case, for quick testing):**
+This opens a browser tab with three sections: a live call screen (phone panel + live agent pipeline strip), a case log, and the dashboard described above.
+
+**Command-line (single case, for quick testing, no UI):**
 ```bash
 python crew_runner.py
 ```
-Runs one hardcoded sample case (Ramesh's scenario) through all five agents and prints every stage's output to the terminal.
+Runs one canned sample case through the full pipeline and prints every stage's output to the terminal.
 
-## What's Real vs. Simulated in This Prototype
+## Deploying to Hugging Face Spaces
 
-We'd rather be upfront about this than have it surface awkwardly during judging.
+This repo is already configured for Hugging Face Spaces (see the YAML frontmatter at the top of this file). To deploy your own copy:
 
-**✅ Fully real and working:**
+1. Create a Space at [huggingface.co/new-space](https://huggingface.co/new-space) with **SDK: Streamlit**.
+2. Get a **write** token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
+3. Push this repo to it:
+   ```bash
+   huggingface-cli login --token YOUR_TOKEN
+   git remote add hf-space https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE
+   git push hf-space master:main --force
+   ```
+4. On the Space page → **Settings → Variables and secrets**, add `GROQ_API_KEY`, `OPENROUTER_API_KEY`, and `SARVAM_API_KEY` as **Secrets**.
+5. The Space rebuilds automatically (~1-2 min) and is live at `https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE`.
+
+**Note:** HF Spaces rejects plain-git binary files (e.g. `assets/hold_tune.wav`) unless tracked with Git LFS. The deployed Space omits this file — `voice_tools.py`'s hold-tune playback already fails gracefully (try/except) if it's missing, so nothing breaks.
+
+## What's Real vs. Simulated
+
+**✅ Fully real:**
+- The multi-turn intake conversation, driven live by the LLM turn-by-turn
 - All 5 agents run on live CrewAI orchestration with real LLM calls at every stage
-- The scheme-matching reasoning is genuine — the Knowledge Matcher agent reasons over actual eligibility criteria, it doesn't use keyword matching
-- The NGO escalation message and follow-up plan are generated fresh per case, not templated
-- The case log and dashboard reflect actual pipeline runs
-- **Hindi speech input** — recorded audio is transcribed by Groq Whisper (`whisper-large-v3-turbo`) the same way for English and Hindi; there is no separate "Hindi mode" model, just a language hint passed to the same STT call
-- **Hindi text translation** — the transcript summary, matched-schemes summary, and follow-up message are translated to Hindi by a plain prompt to the same LLM that runs the agents (`crew_runner.translate_text`), not a separate translation API or library
+- Scheme-matching reasoning is genuine — the Knowledge Matcher reasons over actual eligibility criteria from `schemes.json`, no keyword matching
+- The NGO escalation message and follow-up plan are generated fresh per case
+- **Hindi speech input** — Groq Whisper transcribes Hindi the same way as English, just with a language hint
+- **Native Hindi generation** — intake questions, the spoken summary, and the follow-up message are composed directly in Hindi by the LLM, never translated after the fact from an English draft
+- The case log and dashboard reflect actual pipeline runs, computed live from `data/cases.json`
 
-**🔶 Simulated or partial in this prototype, with a clear path to real:**
-- **Hindi speech output is not on the same engine as English.** Groq's hosted TTS (Orpheus) only ships English and Arabic voices — there is no Groq Hindi voice yet. So English follow-up audio is synthesized by Groq Orpheus, while Hindi follow-up audio falls back to gTTS (Google Text-to-Speech), a different, free engine. This is a real functional gap, not a demo simplification — we're flagging it rather than implying one unified voice stack handles both languages end-to-end.
-- **Phone telephony** — voice is captured via the browser's microphone (`st.audio_input`), not an actual phone call. A production version would put Twilio/Exotel in front of the same Whisper transcription call.
-- **NGO directory** — the 5 NGOs in `ngos.json` are illustrative/fictional for the Kharagpur district demo, since compiling and verifying a real, consented directory of NGO contacts was out of scope for a hackathon timeline. The escalation logic itself does not change when this is swapped for real, verified contacts.
-- **Message dispatch** — escalation and follow-up messages are generated and logged, not actually sent via SMS/email/WhatsApp in this prototype.
-- **Multi-day follow-up** — the Follow-up Coordinator produces a *plan* (message + recommended timing) in a single pipeline run; actually re-contacting the caller days later would need a scheduler (e.g. a cron job or Twilio's scheduled messaging) wired to the same agent.
+**🔶 Simulated or partial, with a clear path to real:**
+- **Phone telephony** — voice is captured via the browser's microphone (`st.audio_input`), not an actual phone call. Production would put Twilio in front of the same Whisper transcription call.
+- **NGO directory** — the 5 NGOs in `ngos.json` are illustrative/fictional for the Kharagpur district demo.
+- **NGO notification** — the escalation message is generated and shown in the UI, not actually dispatched. Production would send it via Twilio SMS/voice.
+- **Multi-day follow-up** — a follow-up *plan* (message + recommended timing) is produced per call; actually re-contacting the caller days later would need a scheduler wired to the same agent.
+- **Hindi TTS quality** — falls back to gTTS (more robotic) if no `SARVAM_API_KEY` is configured.
 
-The reason for drawing this line here: most of what we simulated is integration and infrastructure work (telephony, messaging, scheduling, partner onboarding), not reasoning work. The one real functional gap — Hindi voice output running on a different engine than English — is a genuine limitation of Groq's current TTS offering, not something we chose to simplify.
+## Known Limitations
+
+- **OpenRouter free-tier throttling.** The shared LLM object has an explicit request timeout (see `agents/definitions.py`) because the free-tier key has been observed to silently stall a call for minutes under load rather than erroring. If a turn or pipeline stage seems stuck, this is most likely why — it's an infrastructure constraint, not a code bug. A paid OpenRouter tier removes this risk.
+- **Scheme/NGO usage stats are best-effort.** The dashboard's "times matched"/"times engaged" counts are derived by text-matching scheme/NGO names inside the logged prose output (since those are stored as text, not structured fields, per case) — real data, but approximate.
 
 ## Roadmap to Production
 
-1. Replace the text-box input with real telephony (Twilio/Exotel) + regional-language speech-to-text (Bhashini is purpose-built for Indian languages and worth evaluating first)
-2. Replace the fictional NGO directory with a verified, consented partner network, onboarded district by district
-3. Add real message dispatch (SMS/WhatsApp Business API) for NGO escalation and caller follow-up
+1. Replace browser-mic input with real telephony (Twilio) + regional-language speech-to-text
+2. Replace the fictional NGO directory with a verified, consented partner network
+3. Add real message dispatch (Twilio SMS/voice) for NGO escalation and caller follow-up
 4. Add a scheduler so the Follow-up Coordinator's plan actually triggers a real callback days later
-5. Expand the scheme database beyond the 12 seeded here to the full set of central + West Bengal state schemes, ideally sourced from an official API if one becomes available
-6. Add a feedback loop: track which schemes/NGOs actually resulted in successful applications, and feed that back into the Knowledge Matcher's reasoning over time
+5. Expand the scheme database beyond the 12 seeded here to the full set of central + state schemes
+6. Add a feedback loop: track which schemes/NGOs actually resulted in successful applications
 
-## Authors
+## Author
 
- **Ishwarya Mohan** (Metallurgical & Materials Engineering, IIT Kharagpur)
-
+**Ishwarya Mohan** (Metallurgical & Materials Engineering, IIT Kharagpur)

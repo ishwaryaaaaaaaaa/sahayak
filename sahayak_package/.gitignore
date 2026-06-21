@@ -5,3 +5,4 @@ __pycache__/
 venv/
 data/cases.json
 *.log
+assets/hold_tune.wav
