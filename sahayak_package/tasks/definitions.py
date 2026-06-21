@@ -2,16 +2,39 @@
 Task definitions for Sahayak. Each task is tied to one agent and produces
 a structured output that feeds into the next stage of the pipeline.
 """
+from typing import List
+
 from crewai import Task
+from pydantic import BaseModel
 
 
-def make_listener_task(agent, raw_text: str):
+class SchemeMatch(BaseModel):
+    scheme_id: str
+    scheme_name: str
+    why_match: str
+    documents_needed: List[str]
+
+
+class MatcherOutput(BaseModel):
+    matches: List[SchemeMatch]
+
+
+class NGOOutput(BaseModel):
+    ngo_id: str
+    ngo_name: str
+    ngo_email: str
+    escalation_message: str
+
+
+def make_listener_task(agent, case_brief: str):
     return Task(
         description=(
-            f"Here is a transcript of what a caller said (originally spoken, "
-            f"transcribed to text):\n\n\"{raw_text}\"\n\n"
-            "Produce a structured summary with these fields ONLY, based strictly on "
-            "what was said (do not invent details):\n"
+            f"Here is a structured case intake, already collected turn-by-turn from "
+            f"the caller by an intake conversation manager (name, location, problem, "
+            f"and clarifying details were asked one at a time, so this is not a raw "
+            f"rambling transcript):\n\n{case_brief}\n\n"
+            "Normalize this into a structured summary with these fields ONLY, based "
+            "strictly on what was collected (do not invent details):\n"
             "- person_situation: 1-2 sentence plain summary\n"
             "- stated_need: what the person seems to want help with\n"
             "- mentioned_details: any specific facts mentioned (age, occupation, "
@@ -52,11 +75,13 @@ def make_knowledge_matcher_task(agent, context_tasks, schemes_text: str):
             "- scheme_id and scheme_name\n"
             "- why_match: one sentence on why this person likely qualifies\n"
             "- documents_needed: from the scheme data\n"
-            "If no scheme is a strong match, say so honestly rather than forcing a match."
+            "If no scheme is a strong match, return an empty matches list rather than "
+            "forcing a match."
         ),
         expected_output="A list of matched schemes, each with scheme_id, scheme_name, why_match, and documents_needed.",
         agent=agent,
         context=context_tasks,
+        output_pydantic=MatcherOutput,
     )
 
 
@@ -69,22 +94,30 @@ def make_ngo_coordinator_task(agent, context_tasks, ngos_text: str):
             "a short escalation message to them.\n\n"
             f"AVAILABLE NGOs:\n{ngos_text}\n\n"
             "Output exactly:\n"
-            "- ngo_id and ngo_name\n"
+            "- ngo_id, ngo_name, and ngo_email (copy the email exactly as given in the "
+            "NGO data above, do not invent or alter it)\n"
             "- escalation_message: a short, professional message (3-5 sentences) summarizing "
             "the person's situation, the schemes they may qualify for, and what kind of "
             "help is being requested from the NGO"
         ),
-        expected_output="ngo_id, ngo_name, and escalation_message clearly labeled.",
+        expected_output="ngo_id, ngo_name, ngo_email, and escalation_message clearly labeled.",
         agent=agent,
         context=context_tasks,
+        output_pydantic=NGOOutput,
     )
 
 
-def make_followup_task(agent, context_tasks):
+def make_followup_task(agent, context_tasks, language: str = "en"):
+    language_instruction = (
+        "Write the followup_message in natural, simple Hindi (Devanagari script) — "
+        "this caller speaks Hindi, so do not write it in English and translate later."
+        if language == "hi"
+        else "Write the followup_message in simple English."
+    )
     return Task(
         description=(
             "Using everything established in previous steps, write a short follow-up "
-            "plan. Output exactly:\n"
+            f"plan. {language_instruction} Output exactly:\n"
             "- followup_message: a warm, simple check-in message (2-3 sentences) that "
             "could be read out to the person on a follow-up call\n"
             "- recommended_followup_days: a single integer, number of days from now to "

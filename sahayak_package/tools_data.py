@@ -83,6 +83,7 @@ def ngos_as_text():
     for n in ngos:
         lines.append(
             f"[{n['id']}] {n['name']} | area={n['area']} | "
-            f"focus={', '.join(n['focus'])} | contact={n['contact_person']} ({n['phone']})"
+            f"focus={', '.join(n['focus'])} | contact={n['contact_person']} ({n['phone']}) | "
+            f"email={n['email']}"
         )
     return "\n".join(lines)
