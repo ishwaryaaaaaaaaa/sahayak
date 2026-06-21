@@ -99,6 +99,18 @@ def play_audio(text: str, language: str, autoplay: bool = True):
         st.warning(f"Could not synthesize audio: {e}")
 
 
+HOLD_TUNE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "hold_tune.wav")
+
+
+def play_hold_tune():
+    """Short looping instrumental chime played while the caller waits on a long call step."""
+    try:
+        with open(HOLD_TUNE_PATH, "rb") as f:
+            st.audio(f.read(), format="audio/wav", loop=True, autoplay=True)
+    except Exception:
+        pass  # hold tune is a nice-to-have; never block the call on it
+
+
 # ---------------- TAB 1: Simulated Call ----------------
 with tab1:
     if "intake_state" not in st.session_state:
@@ -148,6 +160,7 @@ with tab1:
 
             if caller_reply:
                 with st.spinner("Thinking..."):
+                    play_hold_tune()
                     st.session_state["intake_state"] = im.next_turn(state, caller_reply)
                 st.rerun()
 
@@ -156,6 +169,7 @@ with tab1:
 
             if "last_result" not in st.session_state:
                 with st.spinner("Running 5-agent pipeline (Listener → Classifier → Scheme Matcher → NGO Coordinator → Follow-up)..."):
+                    play_hold_tune()
                     try:
                         result = run_case(
                             im.build_case_brief(state),
