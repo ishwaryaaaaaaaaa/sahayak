@@ -35,7 +35,6 @@ from tasks.definitions import (
     make_followup_task,
 )
 from tools_data import schemes_as_text, ngos_as_text, save_case
-from email_tools import send_ngo_escalation_email
 
 
 def translate_text(text: str, target_language: str = "hi") -> str:
@@ -97,6 +96,7 @@ def run_case(
     caller_name: str = "Unknown Caller",
     caller_phone: str = "N/A",
     language: str = "en",
+    on_stage_complete: Optional[callable] = None,
 ) -> dict:
     """
     Runs the full 5-agent pipeline on one case and returns a structured result
@@ -115,6 +115,13 @@ def run_case(
     Classifier/Matcher/NGOCoordinator still reason in English internally
     since the schemes/NGO data is English; their stage output is additionally
     translated for the Streamlit debug display only (see translate_text).
+
+    `on_stage_complete(stage_index, output)`, if given, fires synchronously
+    right as each of the 5 tasks finishes (CrewAI's per-Task `callback`), so
+    a caller (e.g. the Streamlit UI's pipeline-strip animation, audit trail,
+    or developer console) can update in step with the real pipeline using
+    the task's actual TaskOutput - not a simulated/fabricated update - rather
+    than only learning about it after the whole crew finishes.
     """
     listener = get_listener_agent()
     classifier = get_classifier_agent()
@@ -128,6 +135,10 @@ def run_case(
     t4 = make_ngo_coordinator_task(coordinator, [t1, t2, t3], ngos_as_text())
     t5 = make_followup_task(follower, [t1, t2, t3, t4], language=language)
 
+    if on_stage_complete:
+        for stage_index, task in enumerate([t1, t2, t3, t4, t5]):
+            task.callback = lambda output, i=stage_index: on_stage_complete(i, output)
+
     crew = Crew(
         agents=[listener, classifier, matcher, coordinator, follower],
         tasks=[t1, t2, t3, t4, t5],
@@ -140,18 +151,8 @@ def run_case(
     matcher_output = t3.output.pydantic if t3.output else None
     ngo_output = t4.output.pydantic if t4.output else None
 
-    case_id = f"CASE-{uuid.uuid4().hex[:8].upper()}"
-    email_sent, email_error = False, None
-    if ngo_output:
-        email_sent, email_error = send_ngo_escalation_email(
-            to_email=ngo_output.ngo_email,
-            ngo_name=ngo_output.ngo_name,
-            case_id=case_id,
-            message_body=ngo_output.escalation_message,
-        )
-
     case_record = {
-        "case_id": case_id,
+        "case_id": f"CASE-{uuid.uuid4().hex[:8].upper()}",
         "created_at": datetime.utcnow().isoformat(),
         "caller_name": caller_name,
         "caller_phone": caller_phone,
@@ -163,8 +164,6 @@ def run_case(
         "ngo_output": str(t4.output) if t4.output else "",
         "followup_output": str(t5.output) if t5.output else "",
         "final_output": str(result),
-        "email_sent": email_sent,
-        "email_error": email_error,
         "status": "escalated",
     }
 
@@ -175,6 +174,13 @@ def run_case(
         case_record["matcher_output_hi"] = translate_text(case_record["matcher_output"], "hi")
 
     save_case(case_record)
+
+    # The Pydantic objects aren't JSON-serializable, so they're attached only
+    # to the in-memory dict returned here (after persisting the plain-text
+    # version above) - the Streamlit UI uses these for structured rendering
+    # (scheme/NGO cards) without needing to re-parse the prose output.
+    case_record["matcher_output_obj"] = matcher_output
+    case_record["ngo_output_obj"] = ngo_output
     return case_record
 
 
