@@ -1,3 +1,14 @@
+---
+title: Sahayak
+emoji: 🤝
+colorFrom: orange
+colorTo: green
+sdk: streamlit
+sdk_version: "1.58.0"
+app_file: app.py
+pinned: false
+---
+
 # Sahayak 🤝
 ### A multi-agent helpline that connects rural callers to government health & finance schemes — and to the NGOs who can actually help them apply.
 
