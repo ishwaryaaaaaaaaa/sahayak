@@ -136,10 +136,26 @@ with tab1:
 
     run_btn = st.button("▶️ Run Sahayak Agent Pipeline", type="primary")
 
+    HOLD_MESSAGE_HI = (
+        "नमस्ते! कृपया थोड़ा रुकें, मैं आपकी बात समझ रहा हूं और सही मदद ढूंढ रहा हूं। "
+        "कृपया लाइन पर बने रहें।"
+    )
+
     if run_btn:
         if not raw_text.strip():
             st.warning("Please enter the caller's situation first.")
         else:
+            if language == "hi":
+                # Spoken/shown the instant the call is submitted, before the
+                # 5-agent pipeline (10-20s) even starts, so the caller hears
+                # something in Hindi right away instead of dead air.
+                st.info(f"🤝 Sahayak: {HOLD_MESSAGE_HI}")
+                try:
+                    hold_audio = synthesize_speech(HOLD_MESSAGE_HI, language="hi")
+                    st.audio(hold_audio, format="audio/mp3", autoplay=True)
+                except Exception:
+                    pass  # hold message is a nice-to-have; never block the call on it
+
             with st.spinner("Running 5-agent pipeline (Listener → Classifier → Scheme Matcher → NGO Coordinator → Follow-up)..."):
                 try:
                     result = run_case(

@@ -11,6 +11,9 @@ import sys
 import re
 import uuid
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
