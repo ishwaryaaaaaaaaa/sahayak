@@ -13,6 +13,7 @@ Once intake is complete, build_case_brief() hands a structured case off to
 the existing Listener task (see tasks/definitions.py / crew_runner.py) -
 the 5-agent pipeline itself is unchanged.
 """
+import logging
 import os
 import sys
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ from pydantic import BaseModel
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agents.definitions import llm
+
+logger = logging.getLogger("sahayak.intake")
 
 MAX_TURNS = 6
 
@@ -49,8 +52,30 @@ class IntakeState:
     current_question: str = ""
 
 
+_OPENING_GREETING_EN = (
+    "Hello, I'm Sahayak. I'm here to help you.\n"
+    "You can tell me what's going on — about your health, your money, or "
+    "anything you're struggling with. Just speak normally, the way you'd "
+    "talk to a person.\n"
+    "I'll listen, and I'll tell you about government help you might be able "
+    "to get. If you need more help after that, I can connect you to someone "
+    "nearby who can walk you through it.\n"
+    "So, go ahead. What's happening?"
+)
+
+_OPENING_GREETING_HI = (
+    "नमस्ते, मैं सहायक हूं। मैं आपकी मदद के लिए यहां हूं।\n"
+    "आप मुझे अपनी सेहत, पैसों, या किसी भी परेशानी के बारे में बता सकते हैं। "
+    "बस सामान्य तरीके से बोलिए, जैसे आप किसी इंसान से बात करते हैं।\n"
+    "मैं सुनूंगा, और आपको बताऊंगा कि आपको कौन सी सरकारी मदद मिल सकती है। अगर "
+    "आपको इसके बाद और मदद चाहिए, तो मैं आपको पास के किसी ऐसे व्यक्ति से जोड़ "
+    "सकता हूं जो आपकी पूरी मदद कर सके।\n"
+    "तो बताइए, क्या हो रहा है?"
+)
+
+
 def opening_question(language: str = "en") -> str:
-    return "आपका नाम क्या है?" if language == "hi" else "What is your name?"
+    return _OPENING_GREETING_HI if language == "hi" else _OPENING_GREETING_EN
 
 
 def new_intake(language: str = "en") -> IntakeState:
@@ -132,6 +157,11 @@ def next_turn(state: IntakeState, caller_reply: str) -> IntakeState:
         "income) ONLY if something important and relevant to their stated problem is "
         "still unclear. If you already have enough to proceed, set complete=true and "
         "leave next_question empty.\n"
+        "- If the caller's LATEST reply indicates they have nothing more to add or "
+        "declines to elaborate further (e.g. \"that's everything\", \"no\", \"nothing "
+        "else\", \"I don't know\"), you MUST respect that and set complete=true now, "
+        "even if some eligibility details are still missing - never ask the same or a "
+        "similar question again after the caller has already declined to answer it.\n"
         + (
             "You MUST set complete=true now and leave next_question empty - the "
             "conversation has reached its turn limit.\n"
@@ -142,7 +172,22 @@ def next_turn(state: IntakeState, caller_reply: str) -> IntakeState:
         "language."
     )
 
-    result = llm.call(messages=prompt, response_model=_TurnExtraction)
+    try:
+        result = llm.call(messages=prompt, response_model=_TurnExtraction)
+    except Exception as e:
+        # If the LLM call times out or errors (seen with the OpenRouter free
+        # tier under load), don't hang the conversation - fall back to the
+        # deterministic next question with no field extraction this turn.
+        # The caller's reply already accepted into state.history above, so
+        # nothing is lost; the next turn's extraction will re-scan it.
+        logger.warning(f"Intake turn LLM call failed, using fallback question: {e}")
+        state.current_question = _fallback_question(state)
+        if force_complete:
+            state.complete = True
+            state.current_question = ""
+        else:
+            state.history.append({"role": "bot", "text": state.current_question})
+        return state
 
     if result.name:
         state.name = result.name
